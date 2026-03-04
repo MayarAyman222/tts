@@ -4,6 +4,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
+import Landing from "./pages/Landing";
 
 import MainCategoriesPage from "./pages/MainCategoriesPage";
 import IconsPage from "./pages/IconsPage";
@@ -13,8 +14,11 @@ function App() {
   return (
     <Router>
       <Routes>
+      <Route path="/" element={<Landing />} />
+
         {/* الصفحة الرئيسية: تعرض Main Categories */}
-        <Route path="/" element={<MainCategoriesPage />} />
+       <Route path="/main-categories" element={<MainCategoriesPage />} />
+
 
         {/* صفحة Icons: تعرض Icons خاصة بالـ main category */}
         <Route path="/icons/:mainCategoryId" element={<IconsPage />} />
