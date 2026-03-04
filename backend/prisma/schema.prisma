@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model MainCategory {
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  icons    Icon[]
+}
+model Icon {
+  id         Int       @id @default(autoincrement())
+  title      String
+  expression String
+  imageUrl   String
+  category   String      @unique
+   mainCategoryId Int
+   mainCategory   MainCategory @relation(fields: [mainCategoryId], references: [id])
+  subIcons   SubIcon[]  // back relation
+
+  @@unique([title])
+}
+
+model SubIcon {
+  id         Int     @id @default(autoincrement())
+  title      String
+  expression String
+  imageUrl   String
+  category   String
+  audioUrl   String?  
+  iconId     Int
+  icon       Icon    @relation(fields: [iconId], references: [id])
+
+  @@unique([title])
+}

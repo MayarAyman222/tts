@@ -1,0 +1,45 @@
+# ========================
+# ROOT IGNORE
+# ========================
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Build folders
+build/
+dist/
+
+# Coverage
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# ========================
+# Backend specific
+# ========================
+
+backend/node_modules/
+backend/audio/
+backend/generated_audio/
+backend/public/records/
+
+# Prisma generated
+backend/generated/prisma
+
+# ========================
+# Frontend specific
+# ========================
+
+frontend/node_modules/
+frontend/build/
+frontend/dist/
