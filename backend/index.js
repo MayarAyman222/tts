@@ -8,7 +8,8 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use("/public", express.static(path.join(__dirname, "../public")));
+app.use('/public', express.static('public'));
+//app.use("/public", express.static(path.join(process.cwd(), "public")));
 app.get("/", (req, res) => {
   res.send("Backend is running!");
 });
