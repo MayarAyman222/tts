@@ -14,6 +14,7 @@ function SubIconsPage() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const audioRef = useRef(new Audio());
+  const BACKEND_URL = "http://168.231.101.20:5551";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,7 +64,8 @@ function SubIconsPage() {
 
     for (let sub of selectedSubs) {
       if (!sub.audioUrl) continue;  
-      audioRef.current.src = normalizeMediaUrl(sub.audioUrl);
+      audioRef.current.src =`${BACKEND_URL}${subIcon.audioUrl}`;
+
       await audioRef.current.play();
 
       await new Promise((resolve) => {
@@ -138,7 +140,7 @@ function SubIconsPage() {
             >
               <Card.Img
                 variant="top"
-                src={normalizeMediaUrl(sub.imageUrl)}
+                src={`${BACKEND_URL}${sub.imageUrl}`}
                 style={{ height: "300px", width: "100%" }}
               />
               <Card.Body>
