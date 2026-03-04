@@ -52,7 +52,6 @@ app.post("/icons/:iconId/subicons", async (req, res) => {
   const { title, expression, imageUrl,audioUrl } = req.body;
 
   try {
-    // تأكد إن الـ Icon موجود
     const icon = await prisma.icon.findUnique({ where: { id: iconId } });
     if (!icon) {
       return res.status(404).json({ message: "Icon not found" });
@@ -64,7 +63,7 @@ app.post("/icons/:iconId/subicons", async (req, res) => {
         expression,
         imageUrl,
          audioUrl,
-        category: icon.category, // نفس category للـ SubIcon
+        category: icon.category, 
         iconId,
       },
     });
@@ -112,7 +111,7 @@ app.get("/maincategories/:id/icons", async (req, res) => {
   try {
     const icons = await prisma.icon.findMany({
       where: { mainCategoryId },
-      include: { subIcons: true }, // عشان يظهرلك SubIcons مباشرة
+      include: { subIcons: true }, 
     });
     res.json(icons);
   } catch (err) {
@@ -157,6 +156,6 @@ app.get("/icons/:iconId/subicons/:subIconId", async (req, res) => {
 });
 
 
-const PORT = 5000;
+const PORT = 5551;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 //add comment
