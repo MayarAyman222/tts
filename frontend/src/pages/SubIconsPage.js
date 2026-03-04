@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Container, Row, Col, Form, Button } from "react-bootstrap";
+import { normalizeMediaUrl } from "../api/api";
 
 function SubIconsPage() {
   const { iconId } = useParams();
@@ -12,13 +13,12 @@ function SubIconsPage() {
   const [connector, setConnector] = useState("و");
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Ref لتخزين عنصر audio
   const audioRef = useRef(new Audio());
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/icons/${iconId}`);
+        const res = await fetch(`http://168.231.101.20:5551/icons/${iconId}`);
         const data = await res.json();
         setMainIcon(data);
       } catch (err) {
@@ -50,7 +50,6 @@ function SubIconsPage() {
     )}`;
   };
 
-  // 🔊 تشغيل الصوت لكل SubIcon المختار بالترتيب باستخدام HTML Audio
   const playSelectedSounds = async () => {
     if (!mainIcon) return;
     const subIcons = mainIcon.subIcons || [];
@@ -63,11 +62,10 @@ function SubIconsPage() {
     setIsPlaying(true);
 
     for (let sub of selectedSubs) {
-      if (!sub.audioUrl) continue; // لو مفيش صوت
-      audioRef.current.src = sub.audioUrl;
+      if (!sub.audioUrl) continue;  
+      audioRef.current.src = normalizeMediaUrl(sub.audioUrl);
       await audioRef.current.play();
 
-      // ننتظر لغاية ما الصوت يخلص
       await new Promise((resolve) => {
         audioRef.current.onended = resolve;
       });
@@ -140,7 +138,7 @@ function SubIconsPage() {
             >
               <Card.Img
                 variant="top"
-                src={sub.imageUrl}
+                src={normalizeMediaUrl(sub.imageUrl)}
                 style={{ height: "300px", width: "100%" }}
               />
               <Card.Body>

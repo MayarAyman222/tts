@@ -1,6 +1,4 @@
-//import logo from './logo.svg';
-//import Translator from './components/Translator';
-// App.js
+
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -16,14 +14,11 @@ function App() {
       <Routes>
       <Route path="/" element={<Landing />} />
 
-        {/* الصفحة الرئيسية: تعرض Main Categories */}
        <Route path="/main-categories" element={<MainCategoriesPage />} />
 
 
-        {/* صفحة Icons: تعرض Icons خاصة بالـ main category */}
         <Route path="/icons/:mainCategoryId" element={<IconsPage />} />
 
-        {/* صفحة SubIcons: تعرض SubIcons خاصة بالـ Icon */}
         <Route path="/subicons/:iconId" element={<SubIconsPage />} />
         <Route path="/icons/:iconId/subicons/:subIconId" element={<SubIconDetail />} />
 

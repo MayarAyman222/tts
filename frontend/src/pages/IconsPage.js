@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Container, Row, Col } from "react-bootstrap";
+import { normalizeMediaUrl } from "../api/api"
 
 function IconsPage() {
   const { mainCategoryId } = useParams();
@@ -8,7 +9,7 @@ function IconsPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(`http://localhost:5000/maincategories/${mainCategoryId}/icons`)
+    fetch(`http://168.231.101.20:5551/maincategories/${mainCategoryId}/icons`)
       .then(res => res.json())
       .then(data => setIcons(data))
       .catch(err => console.log(err));
@@ -29,7 +30,7 @@ function IconsPage() {
             >
               <Card.Img 
                 variant="top" 
-                src={icon.imageUrl} 
+                src={normalizeMediaUrl(icon.imageUrl)} 
                 style={{ height: "300px", width: "100%" }} 
               />
               <Card.Body>

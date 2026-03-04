@@ -34,7 +34,6 @@ async function main() {
   console.log("Main Categories seeded!");
   console.log("Seeding Icons...");
 
-  // 2️⃣ Icons مع الربط بالـ MainCategory
   for (const icon of icons) {
     const mainCat = await prisma.mainCategory.findUnique({
       where: { name: icon.mainCategory }
@@ -51,14 +50,14 @@ async function main() {
         expression: icon.expression,
         imageUrl: icon.imageUrl,
         category: icon.category,
-        mainCategoryId: mainCat.id, // ربط الـ icon بالـ mainCategory
+        mainCategoryId: mainCat.id, 
       },
       create: {
         title: icon.title,
         expression: icon.expression,
         imageUrl: icon.imageUrl,
         category: icon.category,
-        mainCategoryId: mainCat.id, // ربط الـ icon بالـ mainCategory
+        mainCategoryId: mainCat.id, 
       }
     });
   }
@@ -96,7 +95,6 @@ async function main() {
       continue;
     }
 
-    // Upsert SubIcon لتجنب duplicates
     await prisma.subIcon.upsert({
       where: { title: subIcon.title }, // title كـ unique identifier
       update: {

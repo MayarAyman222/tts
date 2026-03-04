@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Container, Row, Col, Button } from "react-bootstrap";
-
+import { normalizeMediaUrl } from "../api/api";
 function SubIconDetail() {
   const { iconId, subIconId } = useParams();
   const [subIcon, setSubIcon] = useState(null);
@@ -10,7 +10,7 @@ function SubIconDetail() {
   useEffect(() => {
     const fetchSubIcon = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/icons/${iconId}/subicons/${subIconId}`);
+        const res = await fetch(`http://168.231.101.20:5551/icons/${iconId}/subicons/${subIconId}`);
         const data = await res.json();
         setSubIcon(data);
       } catch (err) {
@@ -25,9 +25,10 @@ function SubIconDetail() {
     if (!subIcon || !subIcon.audioUrl) return;
 
     setLoadingAudio(true);
-    const audio = new Audio(subIcon.audioUrl); // استخدمي URL كامل من backend
+    const audio = new Audio(normalizeMediaUrl(subIcon.audioUrl)); 
     audio.play();
     audio.onended = () => setLoadingAudio(false);
+    audio.onerror = () => setLoadingAudio(false);
   };
 
   if (!subIcon) return <p className="text-center mt-5">جاري التحميل...</p>;
@@ -38,7 +39,7 @@ function SubIconDetail() {
         {/* الصورة على الشمال */}
         <Col md={5} className="text-center mb-4 mb-md-0">
           <img
-            src={subIcon.imageUrl}
+            src={normalizeMediaUrl(subIcon.imageUrl)}
             alt={subIcon.title}
             className="img-fluid rounded shadow"
             style={{ height: "300px" ,width:"600px"}}

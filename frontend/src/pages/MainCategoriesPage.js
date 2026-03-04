@@ -48,7 +48,7 @@ function MainCategoriesPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://localhost:5000/maincategories")
+    fetch("http://168.231.101.20:5551/maincategories")
       .then(res => res.json())
       .then(data => setCategories(data))
       .catch(err => console.log(err));
