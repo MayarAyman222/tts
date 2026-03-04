@@ -31,7 +31,6 @@ Thumbs.db
 backend/node_modules/
 backend/audio/
 backend/generated_audio/
-backend/public/records/
 
 # Prisma generated
 backend/generated/prisma
