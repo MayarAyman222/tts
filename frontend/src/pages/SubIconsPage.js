@@ -64,7 +64,7 @@ function SubIconsPage() {
 
     for (let sub of selectedSubs) {
       if (!sub.audioUrl) continue;  
-      audioRef.current.src =`${BACKEND_URL}${subIcon.audioUrl}`;
+      audioRef.current.src =`${BACKEND_URL}${sub.audioUrl}`;
 
       await audioRef.current.play();
 
