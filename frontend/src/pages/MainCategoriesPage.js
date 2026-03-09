@@ -63,7 +63,7 @@ function MainCategoriesPage() {
         Main Categories
       </h2>
       <Row className="g-4 w-100 justify-content-center">
-        {categories.map(cat => (
+        {Array.isArray(categories) && categories.map(cat => (
           <Col key={cat.id} xs={12} sm={6} md={4} lg={3}>
             <Card 
               className="text-center shadow-lg h-100"
