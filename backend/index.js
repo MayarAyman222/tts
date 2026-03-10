@@ -178,11 +178,6 @@ const prisma = new PrismaClient();
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// ===== 1️⃣ تأكد من وجود فولدر الرفع =====
-const uploadDir = path.join(__dirname, "public/uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
 
 // ===== إعداد Multer =====
 const storage = multer.diskStorage({
@@ -199,21 +194,13 @@ app.get("/", (req, res) => res.send("Backend is running!"));
 
 // ===== دالة لتحميل الملفات من رابط =====
 async function downloadFile(url, folder = "public/uploads") {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to download " + url);
 
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error("Failed to download " + url);
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
+  const buffer = await res.buffer();
   const filename = Date.now() + "-" + path.basename(url);
   const filePath = path.join(folder, filename);
-
   fs.writeFileSync(filePath, buffer);
-
   return `/public/uploads/${filename}`;
 }
 
