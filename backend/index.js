@@ -190,7 +190,7 @@ const upload = multer({ storage });
 app.use(cors({
   origin: ["http://localhost:3000", "http://192.168.0.104:3000", "http://168.231.101.20:5552" ], // المواقع المسموح لها
   methods: ["GET","POST","PUT","DELETE"],
-  credentials: true // لو هتستخدم cookies أو auth
+  credentials: true 
 }));
 app.use(express.json());
 app.use('/public', express.static(path.join(__dirname, 'public')));

@@ -8,7 +8,7 @@ function SubIconsPage() {
 const { iconId } = useParams();
 const navigate = useNavigate();
 
-const BACKEND_URL = "http://192.168.0.104:5551";;
+const BACKEND_URL =  "http://168.231.101.20:5551";
 const [mainIcon,setMainIcon]=useState(null);
 const [orderedIcons,setOrderedIcons]=useState([]);
 const [selectedIds,setSelectedIds]=useState([]);
