@@ -186,7 +186,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.use(cors());
+//app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:3000", "http://192.168.0.104:3000", "http://168.231.101.20:5552" ], // المواقع المسموح لها
+  methods: ["GET","POST","PUT","DELETE"],
+  credentials: true // لو هتستخدم cookies أو auth
+}));
 app.use(express.json());
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
@@ -196,14 +201,13 @@ app.get("/", (req, res) => res.send("Backend is running!"));
 async function downloadFile(url, folder = "public/uploads") {
   const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to download " + url);
-
-  const buffer = await res.buffer();
+const buffer = Buffer.from(await res.arrayBuffer());
   const filename = Date.now() + "-" + path.basename(url);
-  const filePath = path.join(folder, filename);
+  const filePath = path.join(__dirname, folder, filename);
   fs.writeFileSync(filePath, buffer);
-  return `/public/uploads/${filename}`;
-}
+    return `/public/uploads/${filename}`;
 
+}
 // ===== ICON APIs =====
 app.get("/icons", async (req, res) => {
   const { category } = req.query;
@@ -277,6 +281,7 @@ app.get("/subicons", async (req, res) => {
       : await prisma.subIcon.findMany();
     res.json(subIcons);
   } catch (err) {
+      console.error("SUBICON ERROR:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -336,4 +341,4 @@ app.get("/icons/:iconId/subicons/:subIconId", async (req, res) => {
 });
 
 const PORT = 5551;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, "0.0.0.0",() => console.log(`Server running on http://localhost:${PORT}`));

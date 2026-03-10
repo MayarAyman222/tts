@@ -8,7 +8,7 @@ function SubIconsPage() {
 const { iconId } = useParams();
 const navigate = useNavigate();
 
-const BACKEND_URL = `http://${window.location.hostname}:5551`;
+const BACKEND_URL = "http://192.168.0.104:5551";;
 const [mainIcon,setMainIcon]=useState(null);
 const [orderedIcons,setOrderedIcons]=useState([]);
 const [selectedIds,setSelectedIds]=useState([]);
@@ -35,14 +35,24 @@ const [imageUrl,setImageUrl]=useState("");
 const [imagePreview,setImagePreview]=useState(null);
 
 // Audio states
-const [audioMethod,setAudioMethod]=useState("url"); // "url" or "record"
+/*const [audioMethod,setAudioMethod]=useState("url"); // "url" or "record"
 const [audioUrl,setAudioUrl]=useState("");          // for URL input
 const [audioPreview,setAudioPreview]=useState(null);// preview for URL or recording
 const [recordedFile,setRecordedFile]=useState(null);// for recording file
 const [recording,setRecording]=useState(false);
 
 const mediaRecorderRef=useRef(null);
-const audioChunksRef=useRef([]);
+const audioChunksRef=useRef([]);*/
+const [audioMethod,setAudioMethod] = useState("url");
+
+const [audioFile,setAudioFile] = useState(null);
+const [audioUrl,setAudioUrl] = useState("");
+
+const [recordedFile,setRecordedFile] = useState(null);
+
+const [audioPreview,setAudioPreview] = useState("");
+
+const micInputRef = useRef(null);
 
 // Camera refs - kept for potential future use
 const videoRef=useRef(null);
@@ -214,7 +224,7 @@ const handleCameraCapture = (e) => {
 
 /* ================= AUDIO RECORD ================= */
 
-const startRecording = async () => {
+/*const startRecording = async () => {
   if (!navigator.mediaDevices?.getUserMedia) {
     alert("Microphone not supported");
     return;
@@ -249,10 +259,10 @@ const startRecording = async () => {
 const stopRecording = () => {
   mediaRecorderRef.current.stop();
   setRecording(false);
-};
+};*/
 /* ================= SUBMIT ================= */
 
-const submitSubIcon=async()=>{
+/*const submitSubIcon=async()=>{
 
 const formData=new FormData();
 
@@ -273,7 +283,7 @@ formData.append("image",imageFile);
 formData.append("audioUrl",audioUrl);
 
 if(audioMethod==="record" && audioUrl instanceof File)
-formData.append("audio",audioUrl);*/
+formData.append("audio",audioUrl);*
 if(audioMethod === "url" && audioUrl) formData.append("audioUrl", audioUrl);
 if(audioMethod === "record" && recordedFile) formData.append("audio", recordedFile);
 
@@ -287,7 +297,50 @@ body:formData
 window.location.reload();
 
 };
+*/const submitSubIcon = async () => {
+  const formData = new FormData();
 
+  formData.append("title", title);
+  formData.append("expression", expression);
+  formData.append("category", category);
+
+  if (imageMethod === "upload" && imageFile) formData.append("image", imageFile);
+  if (imageMethod === "url") formData.append("imageUrl", imageUrl);
+  if (imageMethod === "camera" && imageFile) formData.append("image", imageFile);
+   if (audioMethod === "upload" && audioFile)formData.append("audio", audioFile);
+  if (audioMethod === "url" && audioUrl) formData.append("audioUrl", audioUrl);
+  if (audioMethod === "record" && recordedFile) formData.append("audio", recordedFile);
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/icons/${iconId}/subicons`, {
+      method: "POST",
+      body: formData
+    });
+
+    const newSubIcon = await res.json(); // backend يرجع object الجديد
+
+    // إضافة الـ SubIcon الجديد مباشرة للـ state
+    setOrderedIcons(prev => [...prev, newSubIcon]);
+
+    // اغلاق الـ modal ومسح الـ form
+    setShowModal(false);
+    setTitle("");
+    setExpression("");
+    setCategory("");
+    setImageFile(null);
+    setImageUrl("");
+    setImagePreview(null);
+    setAudioUrl("");
+    setAudioPreview(null);
+    setRecordedFile(null);
+    setAudioMethod("url");
+    setImageMethod("upload");
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to add SubIcon");
+  }
+};
 if(!mainIcon) return <p className="text-center mt-5">جاري التحميل...</p>;
 
 return (
@@ -336,26 +389,24 @@ Add SubIcon
 
 </div>
 
-<div className="preview-bar mb-4">
+<div className="preview-bar mb-4 d-flex gap-3 flex-wrap justify-content-center">
+  {selectedIds.map(id => {
+    const sub = orderedIcons.find(s => s.id === id);
+    if (!sub) return null;
 
-{selectedIds.map(id=>{
+    return (
+     <div key={id} className="preview-icon">
 
-const sub=orderedIcons.find(s=>s.id===id);
-
-if(!sub) return null;
-
-return(
-
-<div key={id} className="preview-icon">
-
+{imagePreview && (
+<div className="mt-3 text-center">
+<p>Image Preview</p>
 <img
-src={sub.imageUrl.startsWith("http")
-? sub.imageUrl
-: `${BACKEND_URL}${sub.imageUrl}`
-}
-alt={sub.title}
+  src={imagePreview}
+  style={{ width: "200px", borderRadius: "10px" }}
+  alt="preview"
 />
-
+</div>
+)}
 <div>{sub.title}</div>
 
 </div>
@@ -369,6 +420,8 @@ alt={sub.title}
 </>
 
 )}
+
+
 
 <Row className="g-4">
 
@@ -387,11 +440,12 @@ navigate(`/icons/${iconId}/subicons/${sub.id}`);
 >
 
 <Card.Img
-variant="top"
-src={sub.imageUrl.startsWith("http")
-? sub.imageUrl
-: `${BACKEND_URL}${sub.imageUrl}`}
-style={{height:"300px",width:"100%"}}
+  variant="top"
+  src={
+    sub.imageUrl?.startsWith("http")
+      ? sub.imageUrl
+      : `${BACKEND_URL}${sub.imageUrl}`
+  }
 />
 
 <Card.Body>
@@ -491,75 +545,81 @@ setImagePreview(e.target.value);
 {imagePreview && (
 <div className="mt-3 text-center">
 <p>Image Preview</p>
-<img src={imagePreview} style={{width:"200px",borderRadius:"10px"}} alt="preview"/>
+<img
+  src={imagePreview}
+  style={{ width: "200px", borderRadius: "10px" }}
+  alt="preview"
+/>
 </div>
 )}
-
 <hr/>
 
 <h5>Audio</h5>
 
-<Form.Select value={audioMethod} onChange={e => setAudioMethod(e.target.value)}>
+<Form.Select value={audioMethod} onChange={e=>setAudioMethod(e.target.value)}>
+  <option value="upload">Upload Audio</option>
   <option value="url">Audio URL</option>
-  <option value="record">Record Audio</option>
+  <option value="record">Record (Microphone)</option>
 </Form.Select>
 
-{/* URL input */}
-{audioMethod === "url" && (
-  <Form.Control
-    placeholder="Audio URL"
-    onChange={e => {
-      setAudioUrl(e.target.value);
-      setAudioPreview(e.target.value); // preview for URL
+
+{/* Upload */}
+{audioMethod==="upload" && (
+<Form.Control
+  type="file"
+  accept="audio/*"
+  onChange={e=>{
+    const file = e.target.files[0];
+    setAudioFile(file);
+    setAudioPreview(URL.createObjectURL(file));
+  }}
+/>
+)}
+
+
+{/* URL */}
+{audioMethod==="url" && (
+<Form.Control
+  placeholder="Audio URL"
+  onChange={e=>{
+    setAudioUrl(e.target.value);
+    setAudioPreview(e.target.value);
+  }}
+/>
+)}
+
+
+{/* Record like camera */}
+{audioMethod==="record" && (
+<>
+  <input
+    ref={micInputRef}
+    type="file"
+    accept="audio/*"
+    capture
+    style={{ display:"none" }}
+    onChange={(e)=>{
+      const file = e.target.files[0];
+      setRecordedFile(file);
+      setAudioPreview(URL.createObjectURL(file));
     }}
   />
-)}
 
-{/* Record input */}
-{audioMethod === "record" && (
-  <>
-    {!recording ? (
-      <Button className="mt-2" onClick={async (e) => { 
-        e.preventDefault(); 
-        // start recording
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          alert("Microphone not supported");
-          return;
-        }
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          const mediaRecorder = new MediaRecorder(stream);
-          const chunks = [];
-          mediaRecorder.ondataavailable = e => chunks.push(e.data);
-          mediaRecorder.onstop = () => {
-            const blob = new Blob(chunks, { type: "audio/mp3" });
-            const file = new File([blob], "record.mp3");
-            setAudioUrl(file); // for submit
-            setAudioPreview(URL.createObjectURL(blob)); // for preview
-          };
-          mediaRecorder.start();
-          mediaRecorderRef.current = mediaRecorder;
-          audioChunksRef.current = chunks;
-          setRecording(true);
-        } catch (err) {
-          console.error(err);
-          alert("Cannot access microphone");
-        }
-      }}>
-        🎤 Start Recording
-      </Button>
-    ) : (
-      <Button className="mt-2" variant="danger" onClick={(e) => {
-        e.preventDefault();
-        mediaRecorderRef.current.stop();
-        setRecording(false);
-      }}>
-        ⏹ Stop Recording
-      </Button>
-    )}
-  </>
-)}
+  <Button
+    className="mt-2"
+    onClick={(e)=>{
+      e.preventDefault();
+      micInputRef.current.click();
+    }}
+  >
+    🎤 Record Audio
+  </Button>
 
+  {audioPreview && (
+    <p className="mt-2 text-success">✔️ Audio recorded!</p>
+  )}
+</>
+)}
 {/* Audio Preview */}
 {audioPreview && (
   <div className="mt-3 text-center">
