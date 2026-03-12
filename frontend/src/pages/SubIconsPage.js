@@ -148,7 +148,7 @@ return `${timeOption} ${mainIcon.expression} ${connector} ${expressions.join(` $
 
 /* ================= PLAY AUDIO ================= */
 
-const playSelectedSounds=async()=>{
+/*const playSelectedSounds=async()=>{
 
 if(!mainIcon) return;
 
@@ -203,6 +203,70 @@ return newOrder;
 
 setSelectedIds([]);
 
+};*/
+const playSelectedSounds = async () => {
+  if (!mainIcon) return;
+
+  const enableReorder = reorderCategories.includes(mainIcon.category);
+
+  // 1️⃣ الأصوات اللي هتتلعب
+  const audiosToPlay = [];
+
+  // لو فيه audio للـ main icon نضيفه أولاً
+  if (mainIcon.audioUrl) {
+    audiosToPlay.push(
+      mainIcon.audioUrl.startsWith("http")
+        ? mainIcon.audioUrl
+        : `${BACKEND_URL}${mainIcon.audioUrl}`
+    );
+  }
+
+  // نضيف أصوات الـ subicons المختارة
+  const selectedSubs = selectedIds
+    .map(id => orderedIcons.find(s => s.id === id))
+    .filter(Boolean);
+
+  for (let sub of selectedSubs) {
+    if (sub.audioUrl) {
+      audiosToPlay.push(
+        sub.audioUrl.startsWith("http")
+          ? sub.audioUrl
+          : `${BACKEND_URL}${sub.audioUrl}`
+      );
+    }
+  }
+
+  if (audiosToPlay.length === 0) return;
+
+  setIsPlaying(true);
+
+  // تشغيل كل الأصوات بالترتيب
+  for (let src of audiosToPlay) {
+    audioRef.current.src = src;
+    await audioRef.current.play();
+    await new Promise(resolve => {
+      audioRef.current.onended = resolve;
+    });
+  }
+
+  setIsPlaying(false);
+
+  // لو محتاج إعادة ترتيب
+  if (enableReorder) {
+    setOrderedIcons(prev => {
+      const spoken = prev.filter(icon => selectedIds.includes(icon.id));
+      const remaining = prev.filter(icon => !selectedIds.includes(icon.id));
+      const newOrder = [...remaining, ...spoken];
+      localStorage.setItem(
+        `iconOrder_${iconId}`,
+        JSON.stringify(newOrder.map(i => i.id))
+      );
+      return newOrder;
+    });
+  }
+
+  // تفريغ الاختيارات
+  setSelectedIds([]);
 };
 
 /* ================= CAMERA (Mobile-Compatible) ================= */
@@ -427,7 +491,7 @@ Add SubIcon
 
 {orderedIcons.map(sub=>(
 
-<Col key={sub.id} xs={12} sm={6} md={4} lg={3}>
+<Col key={sub.id} xs={6} sm={4} md={3} lg={2}>
 
 <Card
 className={`text-center shadow h-100 icon-card ${selectedIds.includes(sub.id) ? "selected-icon" : ""}`}

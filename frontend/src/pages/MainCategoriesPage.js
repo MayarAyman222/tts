@@ -42,13 +42,14 @@ export default MainCategoriesPage;*/
 import React, { useEffect, useState } from "react";
 import { Card, Container, Row, Col } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
+const BASE_URL = "http://168.231.101.20:5551";
 
 function MainCategoriesPage() {
   const [categories, setCategories] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://168.231.101.20:5551/maincategories")
+    fetch(`${BASE_URL}/maincategories`)
       .then(res => res.json())
       .then(data => setCategories(data))
       .catch(err => console.log(err));

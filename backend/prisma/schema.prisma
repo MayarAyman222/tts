@@ -16,7 +16,8 @@ model Icon {
   title      String
   expression String
   imageUrl   String
-  category   String      @unique
+  category   String 
+  audioUrl   String? 
    mainCategoryId Int
    mainCategory   MainCategory @relation(fields: [mainCategoryId], references: [id])
   subIcons   SubIcon[]  // back relation

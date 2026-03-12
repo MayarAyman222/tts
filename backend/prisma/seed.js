@@ -13,7 +13,10 @@ import {
   timesSubIcons,
   toolsSubIcons,
   transportSubIcons,
-  verbsSubIcons
+  verbsSubIcons,
+  medicineSubIcons,
+  memoriesSubIcons,
+  neighboursSubIcons
 } from "./data.js";
 
 const prisma = new PrismaClient();
@@ -50,6 +53,7 @@ async function main() {
         expression: icon.expression,
         imageUrl: icon.imageUrl,
         category: icon.category,
+        audioUrl: icon.audioUrl ?? null,
         mainCategoryId: mainCat.id, 
       },
       create: {
@@ -57,6 +61,7 @@ async function main() {
         expression: icon.expression,
         imageUrl: icon.imageUrl,
         category: icon.category,
+         audioUrl: icon.audioUrl ?? null,
         mainCategoryId: mainCat.id, 
       }
     });
@@ -79,14 +84,19 @@ async function main() {
     ...timesSubIcons,
     ...toolsSubIcons,
     ...transportSubIcons,
-    ...verbsSubIcons
+    ...verbsSubIcons,
+    ...medicineSubIcons,
+  ...memoriesSubIcons,
+  ...neighboursSubIcons
   ];
 
   let totalInserted = 0;
 
   for (const subIcon of allSubIcons) {
     // جِب الـ Icon المرتبط بالـ category
-    const icon = await prisma.icon.findUnique({
+    //const icon = await prisma.icon.findUnique({
+    const icon = await prisma.icon.findFirst({
+
       where: { category: subIcon.category },
     });
 

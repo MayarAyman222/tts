@@ -77,7 +77,7 @@ function IconsPage() {
 
         {icons.map(icon => (
 
-          <Col key={icon.id} xs={12} sm={6} md={4} lg={3}>
+          <Col key={icon.id} xs={6} sm={4} md={3} lg={2}>
 
             <Card
               className="text-center shadow h-100"

@@ -16,6 +16,7 @@ export const speakText = async (text, language) => {
   return await res.json();
 };
 const BASE_URL = "http://168.231.101.20:5551";
+//const BASE_URL = "http://192.168.0.103:5551";
 
 export const normalizeMediaUrl = (url) => {
   if (!url) return "";
