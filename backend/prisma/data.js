@@ -539,7 +539,7 @@ export const homeSubIcons = [
   { title: "الحمام", expression: "أريد الذهاب للحمام", imageUrl: "/public/Places/toilet.png", audioUrl: "/public/recordss/Toilet.m4a", category: "Home" }
 ];
 
-export const placesSubIcons = [
+export const SubIcons = [
   { title: "دراجة نارية", expression: "أريد الذهاب بدراجة نارية", imageUrl: "/public/Places/3.png", audioUrl: "/public/recordss/Motorcycle.m4a", category: "places" },
   { title: "طائرة", expression: "أريد الذهاب بطائرة", imageUrl: "/public/Places/4.png", audioUrl: "/public/recordss/plan.m4a", category: "places" },
   { title: "حافلة", expression: "أريد الذهاب بحافلة", imageUrl: "/public/Places/5.png", audioUrl: "/public/recordss/Bus.m4a", category: "places" },

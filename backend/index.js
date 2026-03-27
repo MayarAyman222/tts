@@ -256,7 +256,15 @@ app.get("/timeperiods/:id/icons", async (req, res) => {
 
 app.get("/emergency-numbers", async (req, res) => {
   try {
-    const rows = await prisma.emergencyNumber.findMany({ orderBy: { id: "asc" } });
+    const rows =
+      typeof prisma.emergencyNumber?.findMany === "function"
+        ? await prisma.emergencyNumber.findMany({ orderBy: { id: "asc" } })
+        : await prisma.$queryRaw`
+            SELECT "id", "number", "label"
+            FROM "EmergencyNumber"
+            ORDER BY "id" ASC
+          `;
+
     res.json(rows);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -264,13 +272,38 @@ app.get("/emergency-numbers", async (req, res) => {
 });
 
 app.post("/emergency-numbers", async (req, res) => {
-  const { number, label } = req.body;
+  const { number, label, label_en, label_ar, label_fr, label_es } = req.body;
+  const normalizedNumber = String(number || "").trim();
+  const normalizedLabel =
+    String(label || "").trim() ||
+    String(label_en || "").trim() ||
+    String(label_ar || "").trim() ||
+    String(label_fr || "").trim() ||
+    String(label_es || "").trim() ||
+    null;
+
+  if (!normalizedNumber) {
+    return res.status(400).json({ message: "Number is required" });
+  }
+
   try {
-    const row = await prisma.emergencyNumber.upsert({
-      where: { number: String(number) },
-      update: { label: label ?? null },
-      create: { number: String(number), label: label ?? null }
-    });
+    const row =
+      typeof prisma.emergencyNumber?.upsert === "function"
+        ? await prisma.emergencyNumber.upsert({
+            where: { number: normalizedNumber },
+            update: { label: normalizedLabel },
+            create: { number: normalizedNumber, label: normalizedLabel }
+          })
+        : (
+            await prisma.$queryRaw`
+              INSERT INTO "EmergencyNumber" ("number", "label")
+              VALUES (${normalizedNumber}, ${normalizedLabel})
+              ON CONFLICT ("number")
+              DO UPDATE SET "label" = EXCLUDED."label"
+              RETURNING "id", "number", "label"
+            `
+          )[0];
+
     res.status(201).json(row);
   } catch (err) {
     res.status(500).json({ message: err.message });
