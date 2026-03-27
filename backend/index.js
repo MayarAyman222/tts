@@ -175,11 +175,24 @@ app.get("/icons/:iconId/subicons/:subIconId", async (req, res) => {
 
 app.get("/maincategories/:id/timeperiods", async (req, res) => {
   const mainCategoryId = parseInt(req.params.id);
+  if (Number.isNaN(mainCategoryId)) {
+    return res.status(400).json({ message: "Invalid main category id" });
+  }
+
   try {
-    const periods = await prisma.timePeriod.findMany({
-      where: { mainCategoryId },
-      orderBy: [{ order: "asc" }, { id: "asc" }]
-    });
+    const periods =
+      typeof prisma.timePeriod?.findMany === "function"
+        ? await prisma.timePeriod.findMany({
+            where: { mainCategoryId },
+            orderBy: [{ order: "asc" }, { id: "asc" }]
+          })
+        : await prisma.$queryRaw`
+            SELECT "id", "name", "order", "mainCategoryId"
+            FROM "TimePeriod"
+            WHERE "mainCategoryId" = ${mainCategoryId}
+            ORDER BY "order" ASC NULLS LAST, "id" ASC
+          `;
+
     res.json(periods);
   } catch (err) {
     res.status(500).json({ message: err.message });
