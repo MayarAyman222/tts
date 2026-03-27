@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Container, Row, Col, Card, Form, Button, Alert } from "react-bootstrap";
-import { API_BASE_URL } from "../api/api";
 
 const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition || null;
 
 const NO_SPEECH_GRACE_MS = 900;
+const ATTEMPTS_STORAGE_KEY = "training_attempts_v1";
 
 const normalizeText = (text) => {
   if (!text) return "";
@@ -53,6 +53,52 @@ const calcScore = (target, transcript) => {
   const maxLen = Math.max(s.length, t.length);
   const ratio = maxLen === 0 ? 1 : 1 - dist / maxLen;
   return Math.max(0, Math.min(100, Math.round(ratio * 100)));
+};
+
+const readStoredAttempts = () => {
+  try {
+    const raw = window.localStorage.getItem(ATTEMPTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
+};
+
+const getStoredAttemptsForWord = (word) => {
+  const normalizedWord = String(word || "").trim();
+  if (!normalizedWord) return [];
+
+  return readStoredAttempts()
+    .filter((attempt) => attempt.word === normalizedWord)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+};
+
+const saveAttemptForWord = (word, transcript, score) => {
+  const normalizedWord = String(word || "").trim();
+  if (!normalizedWord) return [];
+
+  const nextAttempt = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    word: normalizedWord,
+    transcript: String(transcript || ""),
+    score: Number(score) || 0,
+    createdAt: new Date().toISOString()
+  };
+
+  const nextAttempts = [...readStoredAttempts(), nextAttempt];
+
+  try {
+    window.localStorage.setItem(ATTEMPTS_STORAGE_KEY, JSON.stringify(nextAttempts));
+  } catch (err) {
+    console.log(err);
+  }
+
+  return nextAttempts
+    .filter((attempt) => attempt.word === normalizedWord)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 };
 
 const LineChart = ({ data }) => {
@@ -110,15 +156,7 @@ function TrainingPage() {
       setAttempts([]);
       return;
     }
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/speech/attempts?word=${encodeURIComponent(trimmed)}`
-      );
-      const data = await res.json();
-      setAttempts(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.log(err);
-    }
+    setAttempts(getStoredAttemptsForWord(trimmed));
   };
 
   useEffect(() => {
@@ -211,17 +249,8 @@ function TrainingPage() {
         }
       }
 
-      fetch(`${API_BASE_URL}/speech/attempts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          word: targetWord.trim(),
-          transcript: text,
-          score: newScore
-        })
-      })
-        .then(() => loadAttempts(targetWord))
-        .catch((err) => console.log(err));
+      const updatedAttempts = saveAttemptForWord(targetWord, text, newScore);
+      setAttempts(updatedAttempts);
     };
 
     recognition.onerror = (event) => {
