@@ -7,22 +7,53 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 model MainCategory {
-  id       Int    @id @default(autoincrement())
-  name     String @unique
-  icons    Icon[]
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  icons        Icon[]
+  timePeriods  TimePeriod[]
 }
+
+model TimePeriod {
+  id             Int          @id @default(autoincrement())
+  name           String
+  order          Int?
+  mainCategoryId Int
+  mainCategory   MainCategory @relation(fields: [mainCategoryId], references: [id])
+  icons          Icon[]
+
+  @@unique([name, mainCategoryId])
+}
+
 model Icon {
-  id         Int       @id @default(autoincrement())
-  title      String
-  expression String
-  imageUrl   String
-  category   String 
-  audioUrl   String? 
-   mainCategoryId Int
-   mainCategory   MainCategory @relation(fields: [mainCategoryId], references: [id])
-  subIcons   SubIcon[]  // back relation
+  id             Int          @id @default(autoincrement())
+  title          String
+  expression     String
+  imageUrl       String
+  category       String
+  audioUrl       String?
+  mainCategoryId Int
+  mainCategory   MainCategory @relation(fields: [mainCategoryId], references: [id])
+  timePeriodId   Int?
+  timePeriod     TimePeriod?  @relation(fields: [timePeriodId], references: [id])
+  subIcons       SubIcon[]
 
   @@unique([title])
+}
+
+model EmergencyNumber {
+  id     Int    @id @default(autoincrement())
+  number String @unique
+  label  String?
+}
+
+model SpeechAttempt {
+  id          Int      @id @default(autoincrement())
+  word        String
+  transcript  String
+  score       Int
+  createdAt   DateTime @default(now())
+
+  @@index([word])
 }
 
 model SubIcon {

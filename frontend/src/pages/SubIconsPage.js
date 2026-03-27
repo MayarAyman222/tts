@@ -2,13 +2,14 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Container, Row, Col, Form, Button, Modal } from "react-bootstrap";
 import "./SubIconsPage.css";
+import { API_BASE_URL } from "../api/api";
 
 function SubIconsPage() {
 
 const { iconId } = useParams();
 const navigate = useNavigate();
 
-const BACKEND_URL =  "http://168.231.101.20:5551";
+const BACKEND_URL = API_BASE_URL;
 const [mainIcon,setMainIcon]=useState(null);
 const [orderedIcons,setOrderedIcons]=useState([]);
 const [selectedIds,setSelectedIds]=useState([]);
