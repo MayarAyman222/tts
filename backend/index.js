@@ -201,11 +201,53 @@ app.get("/maincategories/:id/timeperiods", async (req, res) => {
 
 app.get("/timeperiods/:id/icons", async (req, res) => {
   const timePeriodId = parseInt(req.params.id);
+  if (Number.isNaN(timePeriodId)) {
+    return res.status(400).json({ message: "Invalid time period id" });
+  }
+
   try {
-    const icons = await prisma.icon.findMany({
-      where: { timePeriodId },
-      include: { subIcons: true }
-    });
+    let icons;
+
+    try {
+      icons = await prisma.icon.findMany({
+        where: { timePeriodId },
+        include: { subIcons: true }
+      });
+    } catch (err) {
+      if (!String(err?.message || "").includes("Unknown argument `timePeriodId`")) {
+        throw err;
+      }
+
+      const rawIcons = await prisma.$queryRaw`
+        SELECT "id", "title", "expression", "imageUrl", "category", "audioUrl", "mainCategoryId", "timePeriodId"
+        FROM "Icon"
+        WHERE "timePeriodId" = ${timePeriodId}
+        ORDER BY "id" ASC
+      `;
+
+      if (!rawIcons.length) {
+        return res.json([]);
+      }
+
+      const iconIds = rawIcons.map((icon) => icon.id);
+      const subIcons = await prisma.subIcon.findMany({
+        where: { iconId: { in: iconIds } }
+      });
+
+      const subIconsByIconId = subIcons.reduce((acc, subIcon) => {
+        if (!acc[subIcon.iconId]) {
+          acc[subIcon.iconId] = [];
+        }
+        acc[subIcon.iconId].push(subIcon);
+        return acc;
+      }, {});
+
+      icons = rawIcons.map((icon) => ({
+        ...icon,
+        subIcons: subIconsByIconId[icon.id] || []
+      }));
+    }
+
     res.json(icons);
   } catch (err) {
     res.status(500).json({ message: err.message });
