@@ -13,10 +13,18 @@ function IconsPage() {
       ? `${API_BASE_URL}/timeperiods/${timePeriodId}/icons`
       : `${API_BASE_URL}/maincategories/${mainCategoryId}/icons`;
 
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => setIcons(data))
-      .catch((err) => console.log(err));
+    fetch(url, { cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to load icons: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => setIcons(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.log(err);
+        setIcons([]);
+      });
   }, [mainCategoryId, timePeriodId]);
 
   return (

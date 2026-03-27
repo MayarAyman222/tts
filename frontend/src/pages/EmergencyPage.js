@@ -30,11 +30,17 @@ function EmergencyPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/emergency-numbers`);
+        const res = await fetch(`${API_BASE_URL}/emergency-numbers`, {
+          cache: "no-store"
+        });
+        if (!res.ok) {
+          throw new Error(`Failed to load emergency numbers: ${res.status}`);
+        }
         const data = await res.json();
         setNumbers(Array.isArray(data) ? data : []);
       } catch (err) {
         console.log(err);
+        setNumbers([]);
       } finally {
         setLoading(false);
       }
@@ -52,12 +58,16 @@ function EmergencyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           number: trimmed,
+          label: newLabel.trim() || newLabelAr.trim() || newLabelFr.trim() || newLabelEs.trim(),
           label_en: newLabel.trim(),
           label_ar: newLabelAr.trim(),
           label_fr: newLabelFr.trim(),
           label_es: newLabelEs.trim()
         })
       });
+      if (!res.ok) {
+        throw new Error(`Failed to save emergency number: ${res.status}`);
+      }
       const created = await res.json();
       setNumbers((prev) => {
         const exists = prev.some((n) => n.number === created.number);
@@ -86,7 +96,7 @@ function EmergencyPage() {
   };
 
   const getLabel = (item) =>
-    item.label_en || item.label_ar || item.label_fr || item.label_es || "Emergency Number";
+    item.label_en || item.label_ar || item.label_fr || item.label_es || item.label || "Emergency Number";
 
   return (
     <Container className="mt-5" style={{ maxWidth: "1000px" }}>

@@ -9,10 +9,20 @@ function TimePeriodsPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/maincategories/${mainCategoryId}/timeperiods`)
-      .then((res) => res.json())
-      .then((data) => setPeriods(data))
-      .catch((err) => console.log(err));
+    fetch(`${API_BASE_URL}/maincategories/${mainCategoryId}/timeperiods`, {
+      cache: "no-store"
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to load time periods: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => setPeriods(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.log(err);
+        setPeriods([]);
+      });
   }, [mainCategoryId]);
 
   return (

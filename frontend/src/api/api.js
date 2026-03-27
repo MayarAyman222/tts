@@ -1,5 +1,9 @@
-export const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "http://localhost:5551";
+const rawApiBaseUrl =
+  process.env.REACT_APP_API_BASE_URL ||
+  process.env.REACT_APP_API_URL ||
+  "http://168.231.101.20:5551/";
+
+export const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, "");
 
 export const translateText = async (text, targetLang) => {
   const res = await fetch(`${API_BASE_URL}/api/translate`, {
