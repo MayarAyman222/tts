@@ -21,7 +21,7 @@ const upload = multer({ storage });
 
 //app.use(cors());
 app.use(cors({
-  origin: ["http://localhost:3000", "http://192.168.0.103:3000", "http://168.231.101.20:5552" ], // المواقع المسموح لها
+  origin: ["http://localhost:3000", "http://192.168.0.103:3000", "http://168.231.101.20:5552" , "https://tts-eight-iota.vercel.app/"], // المواقع المسموح لها
   methods: ["GET","POST","PUT","DELETE"],
   credentials: true 
 }));
