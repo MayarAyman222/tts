@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Container, Row, Col, Button } from "react-bootstrap";
-import { normalizeMediaUrl, API_BASE_URL } from "../api/api";
+import { API_BASE_URL } from "../api/api";
 function SubIconDetail() {
   const { iconId, subIconId } = useParams();
   const [subIcon, setSubIcon] = useState(null);

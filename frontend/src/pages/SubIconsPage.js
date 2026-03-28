@@ -56,10 +56,10 @@ const [audioPreview,setAudioPreview] = useState("");
 const micInputRef = useRef(null);
 
 // Camera refs - kept for potential future use
-const videoRef=useRef(null);
-const canvasRef=useRef(null);
+//const videoRef=useRef(null);
+//const canvasRef=useRef(null);
 const cameraInputRef = useRef(null);
-const audioInputRef = useRef(null);
+//const audioInputRef = useRef(null);
 // NEW: ref for the hidden camera file input
 
 /* ================= FETCH DATA ================= */
@@ -114,7 +114,7 @@ console.log(err);
 
 fetchData();
 
-},[iconId]);
+},[iconId,BACKEND_URL,reorderCategories]);
 
 /* ================= SELECT ICON ================= */
 
