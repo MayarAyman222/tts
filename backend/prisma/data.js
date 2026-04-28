@@ -3,7 +3,8 @@ export const mainCategories = [
   { name: "Real Life Activities" },
   { name: "Reminder Me" },
   { name: "Emergency" },
-  { name: "Try and Train to Speak" }
+  { name: "Try and Train to Speak" },
+  { name: "expressyourfeelingsbydrawing" }
 ];
  
 export const emergencyNumbers = [
@@ -287,6 +288,117 @@ export const icons = [
     imageUrl: "/public/icons/Places.png",
     category: "places",
     mainCategory: "Real Life Activities"
+  },
+  {
+    title: "الحمام",
+    expression: "أريد الذهاب إلى الحمام",
+    imageUrl: "/public/icons/Bathroom.png",
+    category: "Bathroom",
+    timePeriod: "Morning",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "تواصل",
+    expression: "أريد التواصل",
+    imageUrl: "/public/icons/Communication.png",
+    category: "Communication",
+    timePeriod: "Evening",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "ترفيه",
+    expression: "أريد الاسترخاء",
+    imageUrl: "/public/icons/Leisure.png",
+    category: "Leisure",
+    timePeriod: "Afternoon",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "مستند",
+    expression: "أحتاج مستند",
+    imageUrl: "/public/icons/Document.png",
+    category: "Document",
+    timePeriod: "Morning",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "كائن حي",
+    expression: "هذا كائن حي",
+    imageUrl: "/public/icons/LivingBeing.png",
+    category: "Living Being",
+    timePeriod: "Afternoon",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "معرفة",
+    expression: "أريد التعلم",
+    imageUrl: "/public/icons/Knowledge.png",
+    category: "Knowledge",
+    timePeriod: "Morning",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "تعليم",
+    expression: "أريد الدراسة",
+    imageUrl: "/public/icons/Education.png",
+    category: "Education",
+    timePeriod: "Morning",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "متفرقات",
+    expression: "أشياء أخرى",
+    imageUrl: "/public/icons/Misc.png",
+    category: "Miscellaneous",
+    timePeriod: "Noon",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "حركة",
+    expression: "أريد التحرك",
+    imageUrl: "/public/icons/Movement.png",
+    category: "Movement",
+    timePeriod: "Afternoon",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "القطاع الاقتصادي",
+    expression: "أريد الذهاب إلى العمل",
+    imageUrl: "/public/icons/sector.png",
+    category: "work",
+    timePeriod: "Morning",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "دين",
+    expression: "أريد الصلاة",
+    imageUrl: "/public/icons/Religion.png",
+    category: "Religion",
+    timePeriod: "Evening",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "عمل",
+    expression: "أريد العمل",
+    imageUrl: "/public/icons/Work.png",
+    category: "Work",
+    timePeriod: "Morning",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "نبات",
+    expression: "أريد التعلم عن النباتات",
+    imageUrl: "/public/icons/Plant.png",
+    category: "Plant",
+    timePeriod: "Morning",
+    mainCategory: "Real Life Activities"
+  },
+  {
+    title: "أصدقائي",
+    expression: "أصدقائي",
+    imageUrl: "/public/icons/friends.png",
+    category: "Friends",
+    mainCategory: "Reminder Me"
   }
 ];
 
@@ -299,7 +411,35 @@ export const animalSubIcons = [
   { title: "قطة", expression: "هذه قطة", imageUrl: "/public/Animals/Cat.png", audioUrl: "/public/recordss/Cat.m4a", category: "Animals" },
   { title: "كلب", expression: "هذا كلب", imageUrl: "/public/Animals/Dog.png", audioUrl: "/public/recordss/Dog.m4a", category: "Animals" },
   { title: "سمكة", expression: "هذه سمكة", imageUrl: "/public/Animals/Fish.png", audioUrl: "/public/recordss/Fish.m4a", category: "Animals" },
-  { title: "حشرة", expression: "هذه حشرة", imageUrl: "/public/Animals/7shraat.png", category: "Animals" }
+  { title: "حشرة", expression: "هذه حشرة", imageUrl: "/public/Animals/7shraat.png", category: "Animals" },
+  { title: "تشريح", expression: "هذا تشريح الحيوانات", imageUrl: "/public/Animals/anatomy.png", category: "Animals" },
+  { title: "تغذية", expression: "هذه تغذية الحيوانات", imageUrl: "/public/Animals/nutrition.png", category: "Animals" },
+  { title: "أنواع الحيوانات", expression: "هذه أنواع الحيوانات", imageUrl: "/public/Animals/types.png", category: "Animals" },
+  { title: "التكاثر", expression: "هذا تكاثر الحيوانات", imageUrl: "/public/Animals/reproduction.png", category: "Animals" },
+  { title: "فسيولوجيا", expression: "هذه فسيولوجيا الحيوانات", imageUrl: "/public/Animals/physiology.png", category: "Animals" },
+  { title: "البيئة", expression: "هذه بيئة الحيوانات", imageUrl: "/public/Animals/environment.png", category: "Animals" },
+  { title: "سلوك", expression: "هذا سلوك الحيوانات", imageUrl: "/public/Animals/behavior.png", category: "Animals" },
+  { title: "سكن الحيوانات", expression: "هذا سكن الحيوانات", imageUrl: "/public/Animals/housing.png", category: "Animals" },
+  { title: "العلاج بالحيوانات", expression: "هذا العلاج بالحيوانات", imageUrl: "/public/Animals/therapy.png", category: "Animals" },
+  { title: "أليفة وبرية", expression: "هذه حيوانات أليفة وبرية", imageUrl: "/public/Animals/pets.png", category: "Animals" }
+];
+
+export const educationSubIcons = [
+  { title: "نشاط تعليمي", expression: "أريد القيام بنشاط تعليمي", imageUrl: "/public/education/activity.png", category: "Education" },
+  { title: "مادة دراسية", expression: "أريد دراسة مادة", imageUrl: "/public/education/subject.png", category: "Education" },
+  { title: "مؤسسة تعليمية", expression: "أريد الذهاب إلى مؤسسة تعليمية", imageUrl: "/public/education/institution.png", category: "Education" },
+  { title: "مهمة تعليمية", expression: "أريد القيام بمهمة", imageUrl: "/public/education/task.png", category: "Education" },
+  { title: "مواد تعليمية", expression: "أحتاج مواد تعليمية", imageUrl: "/public/education/material.png", category: "Education" },
+  { title: "معدات تعليمية", expression: "أحتاج معدات", imageUrl: "/public/education/equipment.png", category: "Education" },
+  { title: "مكان تعليمي", expression: "أريد الذهاب إلى مكان تعليمي", imageUrl: "/public/education/space.png", category: "Education" },
+  { title: "منظمة تعليمية", expression: "هذه منظمة تعليمية", imageUrl: "/public/education/org.png", category: "Education" },
+  { title: "منشأة تعليمية", expression: "هذه منشأة تعليمية", imageUrl: "/public/education/establishment.png", category: "Education" },
+  { title: "تعليم خاص", expression: "أحتاج تعليم خاص", imageUrl: "/public/education/special.png", category: "Education" },
+  { title: "طاقم تعليمي", expression: "أريد التحدث مع الطاقم", imageUrl: "/public/education/staff.png", category: "Education" },
+  { title: "وثائق تعليمية", expression: "أحتاج مستندات", imageUrl: "/public/education/docs.png", category: "Education" },
+  { title: "طلاب", expression: "الطلاب هنا", imageUrl: "/public/education/students.png", category: "Education" },
+  { title: "منهجية", expression: "أريد تعلم منهج", imageUrl: "/public/education/method.png", category: "Education" },
+  { title: "مفردات أساسية", expression: "أريد تعلم كلمات أساسية", imageUrl: "/public/education/vocab.png", category: "Education" }
 ];
 
 export const clothesSubIcons = [
@@ -532,6 +672,28 @@ export const listenSubIcons = [
   { title: "محادثة", expression: "أريد الاستماع لمحادثة", imageUrl: "/public/listen/Conversationn.png", category: "Listen" }
 ];
 
+export const leisureSubIcons = [
+  { title: "رياضة", expression: "أريد ممارسة الرياضة", imageUrl: "/public/leisure/sport.png", category: "Leisure" },
+  { title: "ألعاب", expression: "أريد اللعب", imageUrl: "/public/leisure/games.png", category: "Leisure" },
+  { title: "ألعاب فيديو", expression: "أريد ألعاب فيديو", imageUrl: "/public/leisure/videogame.png", category: "Leisure" },
+  { title: "أنشطة خارجية", expression: "أريد أنشطة خارجية", imageUrl: "/public/leisure/outdoor.png", category: "Leisure" },
+  { title: "شاطئ", expression: "أريد الذهاب إلى الشاطئ", imageUrl: "/public/leisure/beach.png", category: "Leisure" },
+  { title: "هواية", expression: "أريد ممارسة هوايتي", imageUrl: "/public/leisure/hobby.png", category: "Leisure" },
+  { title: "ترفيه", expression: "أريد الترفيه", imageUrl: "/public/leisure/entertainment.png", category: "Leisure" },
+  { title: "عرض", expression: "أريد مشاهدة عرض", imageUrl: "/public/leisure/show.png", category: "Leisure" }
+];
+
+export const bathroomSubIcons = [
+  { title: "استحمام", expression: "أريد الاستحمام", imageUrl: "/public/icons/Shower.png", category: "Bathroom" },
+  { title: "المرحاض", expression: "أريد استخدام المرحاض", imageUrl: "/public/icons/Toilet.png", category: "Bathroom" },
+  { title: "تنظيف الأسنان", expression: "أريد تنظيف أسناني", imageUrl: "/public/icons/BrushTeeth.png", category: "Bathroom" },
+  { title: "غسل اليدين", expression: "أريد غسل يدي", imageUrl: "/public/icons/WashHands.png", category: "Bathroom" },
+  { title: "غسل الوجه", expression: "أريد غسل وجهي", imageUrl: "/public/icons/WashFace.png", category: "Bathroom" },
+  { title: "حلاقة", expression: "أريد الحلاقة", imageUrl: "/public/icons/Shave.png", category: "Bathroom" },
+  { title: "تمشيط الشعر", expression: "أريد تمشيط شعري", imageUrl: "/public/icons/CombHair.png", category: "Bathroom" },
+  { title: "استخدام المنشفة", expression: "أحتاج منشفة", imageUrl: "/public/icons/Towel.png", category: "Bathroom" }
+];
+
 export const homeSubIcons = [
   { title: "غرفة النوم", expression: "أريد الذهاب لغرفة النوم", imageUrl: "/public/Places/bedroom.png", audioUrl: "/public/recordss/Bedroom.m4a", category: "Home" },
   { title: "المطبخ", expression: "أريد الذهاب للمطبخ", imageUrl: "/public/Places/kitchen.png", audioUrl: "/public/recordss/Kitchen.m4a", category: "Home" },
@@ -539,7 +701,7 @@ export const homeSubIcons = [
   { title: "الحمام", expression: "أريد الذهاب للحمام", imageUrl: "/public/Places/toilet.png", audioUrl: "/public/recordss/Toilet.m4a", category: "Home" }
 ];
 
-export const SubIcons = [
+export const placesSubIcons = [
   { title: "دراجة نارية", expression: "أريد الذهاب بدراجة نارية", imageUrl: "/public/Places/3.png", audioUrl: "/public/recordss/Motorcycle.m4a", category: "places" },
   { title: "طائرة", expression: "أريد الذهاب بطائرة", imageUrl: "/public/Places/4.png", audioUrl: "/public/recordss/plan.m4a", category: "places" },
   { title: "حافلة", expression: "أريد الذهاب بحافلة", imageUrl: "/public/Places/5.png", audioUrl: "/public/recordss/Bus.m4a", category: "places" },
@@ -557,6 +719,8 @@ export const SubIcons = [
   { title: "الجامعة", expression: "أريد الذهاب إلى الجامعة", imageUrl: "/public/Places/university.png", audioUrl: "/public/recordss/University.m4a", category: "places" },
   { title: "العمل", expression: "أريد الذهاب إلى العمل", imageUrl: "/public/Places/work.png", audioUrl: "/public/recordss/Work.m4a", category: "places" }
 ];
+
+export const SubIcons = placesSubIcons;
 
 export const breakfastSubIcons = [
   { title: "خبز", expression: "أريد خبزاً", imageUrl: "/public/breakfast/breadd.png", category: "Breakfast" },
@@ -742,4 +906,24 @@ export const neighboursSubIcons = [
   { title: "شكر يوسف وليلى", expression: "أريد شكر يوسف وليلى من الجيران", imageUrl: "/public/Neighbours/youssef_lyla_thank.png", audioUrl: "/public/recordss/Yousef_laila.m4a", category: "Neighbours" },
   { title: "لعب مع جارتنا سارة", expression: "أريد اللعب مع جارتنا سارة", imageUrl: "/public/Neighbours/sara_play.png", audioUrl: "/public/recordss/Sara.m4a", category: "Neighbours" },
   { title: "طلب مساعدة من جاري عمرو", expression: "أحتاج مساعدة من جاري عمرو", imageUrl: "/public/Neighbours/amr_help.png", audioUrl: "/public/recordss/Amr.m4a", category: "Neighbours" }
+];
+
+export const friendsSubIcons = [
+  { title: "أحمد", expression: "أحمد، أعز أصدقائي من المدرسة", imageUrl: "/public/Family/ahmed.png", category: "Friends" },
+  { title: "محمد", expression: "محمد، صديق قريب لم أره منذ مدة", imageUrl: "/public/Family/mohamed.png", category: "Friends" },
+  { title: "سارة", expression: "سارة، صديقة الطفولة", imageUrl: "/public/Family/sara.png", category: "Friends" },
+  { title: "منى", expression: "منى، صديقة طيبة تساعدني دائمًا", imageUrl: "/public/Family/mona.png", category: "Friends" },
+  { title: "عمر", expression: "عمر، صديقي القديم من الحي", imageUrl: "/public/Family/omar.png", category: "Friends" },
+  { title: "يوسف", expression: "يوسف، أعز أصدقائي من الطفولة", imageUrl: "/public/Family/youssef.png", category: "Friends" },
+  { title: "ليلى", expression: "ليلى، صديقة قريبة جدًا", imageUrl: "/public/Family/laila.png", category: "Friends" },
+  { title: "حسن", expression: "حسن، صديق وفي أثق به", imageUrl: "/public/Family/hassan.png", category: "Friends" },
+  { title: "نور", expression: "نور، صديق مرح يجعلني سعيدًا", imageUrl: "/public/Family/nour.png", category: "Friends" },
+  { title: "كريم", expression: "كريم، صديق كبرت معه", imageUrl: "/public/Family/karim.png", category: "Friends" }
+];
+
+export const economicSubIcons = [
+  { title: "القطاع الأولي", expression: "أريد العمل في القطاع الأولي", imageUrl: "/public/economic/primary.png", category: "work" },
+  { title: "القطاع الثانوي", expression: "أريد العمل في القطاع الثانوي", imageUrl: "/public/economic/secondary.png", category: "work" },
+  { title: "القطاع الثالثي", expression: "أريد العمل في القطاع الثالثي", imageUrl: "/public/economic/tertiary.png", category: "work" },
+  { title: "مهنة", expression: "أريد وظيفة", imageUrl: "/public/economic/job.png", category: "work" }
 ];

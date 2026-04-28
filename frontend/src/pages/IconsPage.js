@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, Container, Row, Col } from "react-bootstrap";
 import { normalizeMediaUrl, API_BASE_URL } from "../api/api";
+import "./SubSubIconsPage.css";
+
+const DEFAULT_IMAGE = normalizeMediaUrl("/public/default.jpg");
 
 function IconsPage() {
   const { mainCategoryId, timePeriodId } = useParams();
@@ -28,34 +30,50 @@ function IconsPage() {
   }, [mainCategoryId, timePeriodId]);
 
   return (
-    <Container className="mt-5">
-      <h2 className="mb-4 text-center">choose your category</h2>
+    <div className="subsub-page">
+      <div className="subsub-hero">
+        <button
+          type="button"
+          className="subsub-back"
+          onClick={() => navigate(-1)}
+        >
+          رجوع
+        </button>
 
-      <Row className="g-4">
-        {icons.map((icon) => (
-          <Col key={icon.id} xs={6} sm={4} md={3} lg={2}>
-            <Card
-              className="text-center shadow h-100"
-              onClick={() => navigate(`/subicons/${icon.id}`)}
-              style={{ cursor: "pointer", transition: "transform 0.2s" }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-            >
-              <Card.Img
-                variant="top"
-                src={normalizeMediaUrl(icon.imageUrl)}
-                style={{ height: "300px", width: "100%" }}
-              />
+        <h1 className="subsub-title">choose your category</h1>
+      </div>
 
-              <Card.Body>
-                <Card.Title>{icon.title}</Card.Title>
-                <Card.Text>{icon.expression}</Card.Text>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-    </Container>
+      {icons.length ? (
+        <div className="subsub-grid">
+          {icons.map((icon) => (
+            <div key={icon.id} className="subsub-card">
+              <button
+                type="button"
+                className="subsub-card-body"
+                onClick={() => navigate(`/subicons/${icon.id}`)}
+              >
+                <img
+                  src={normalizeMediaUrl(icon.imageUrl || icon.imgUrl) || DEFAULT_IMAGE}
+                  alt={icon.title}
+                  className="subsub-card-image"
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = DEFAULT_IMAGE;
+                  }}
+                />
+
+                <div className="subsub-card-footer">
+                  <h3>{icon.title}</h3>
+                  <p>{icon.expression}</p>
+                </div>
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-center mt-4">لا توجد عناصر.</p>
+      )}
+    </div>
   );
 }
 

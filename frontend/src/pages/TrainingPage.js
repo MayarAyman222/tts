@@ -169,7 +169,7 @@ function TrainingPage() {
     const allowInsecure =
       host === "localhost" || host === "127.0.0.1" || host === "[::1]";
     if (!window.isSecureContext && !allowInsecure) {
-      setError("افتح التطبيق من http://localhost:3000 أو استخدم HTTPS.");
+      setError("افتح التطبيق من http://localhost:5551 أو استخدم HTTPS.");
       return;
     }
     if (!SpeechRecognition) {

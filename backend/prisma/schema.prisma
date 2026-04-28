@@ -65,6 +65,20 @@ model SubIcon {
   audioUrl   String?  
   iconId     Int
   icon       Icon    @relation(fields: [iconId], references: [id])
+  subSubIcons SubSubIcon[]
 
-  @@unique([title])
+  @@unique([title, iconId])
+}
+
+model SubSubIcon {
+  id         Int     @id @default(autoincrement())
+  title      String
+  expression String
+  imageUrl   String
+  category   String
+  audioUrl   String?
+  subIconId  Int
+  subIcon    SubIcon @relation(fields: [subIconId], references: [id])
+
+  @@unique([title, subIconId])
 }

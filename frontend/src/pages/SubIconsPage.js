@@ -1,9 +1,13 @@
 /* eslint-disable */
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, Container, Row, Col, Form, Button, Modal } from "react-bootstrap";
+import { Form, Button, Modal } from "react-bootstrap";
 import "./SubIconsPage.css";
-import { API_BASE_URL } from "../api/api";
+import "./SubSubIconsPage.css";
+import { API_BASE_URL, normalizeMediaUrl } from "../api/api";
+
+const AUDIO_PLAYBACK_RATE = 1.4;
+const AUDIO_FALLBACK_TIMEOUT_MS = 15000;
 
 function SubIconsPage() {
 
@@ -11,6 +15,7 @@ const { iconId } = useParams();
 const navigate = useNavigate();
 
 const BACKEND_URL = API_BASE_URL;
+const DEFAULT_IMAGE = normalizeMediaUrl("/public/default.jpg");
 const [mainIcon,setMainIcon]=useState(null);
 const [orderedIcons,setOrderedIcons]=useState([]);
 const [selectedIds,setSelectedIds]=useState([]);
@@ -117,6 +122,13 @@ fetchData();
 
 },[iconId,BACKEND_URL,reorderCategories]);
 
+useEffect(() => () => {
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current.src = "";
+  }
+}, []);
+
 /* ================= SELECT ICON ================= */
 
 const toggleSelect=id=>{
@@ -147,6 +159,54 @@ if(expressions.length===0) return "";
 return `${timeOption} ${mainIcon.expression} ${connector} ${expressions.join(` ${connector} `)}`;
 
 };
+
+const getAudioUrl = (item) => normalizeMediaUrl(item?.recordingUrl || item?.audioUrl);
+
+const playAudioSource = (audioRef, src) =>
+  new Promise(resolve => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+    }
+
+    const audio = new Audio(src);
+    audioRef.current = audio;
+    audio.preload = "auto";
+    audio.playbackRate = AUDIO_PLAYBACK_RATE;
+
+    let settled = false;
+    let timeoutId = null;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      audio.pause();
+      audio.src = "";
+      resolve();
+    };
+
+    const setDurationTimeout = () => {
+      clearTimeout(timeoutId);
+      const durationMs = Number.isFinite(audio.duration)
+        ? (audio.duration * 1000) / AUDIO_PLAYBACK_RATE + 700
+        : AUDIO_FALLBACK_TIMEOUT_MS;
+      timeoutId = setTimeout(
+        finish,
+        Math.min(Math.max(durationMs, 1500), AUDIO_FALLBACK_TIMEOUT_MS),
+      );
+    };
+
+    audio.onloadedmetadata = setDurationTimeout;
+    audio.onended = finish;
+    audio.onerror = finish;
+    timeoutId = setTimeout(finish, AUDIO_FALLBACK_TIMEOUT_MS);
+
+    const playPromise = audio.play();
+    if (playPromise?.catch) {
+      playPromise.catch(finish);
+    }
+  });
 
 /* ================= PLAY AUDIO ================= */
 
@@ -210,65 +270,40 @@ const playSelectedSounds = async () => {
   if (!mainIcon) return;
 
   const enableReorder = reorderCategories.includes(mainIcon.category);
-
-  // 1️⃣ الأصوات اللي هتتلعب
-  const audiosToPlay = [];
-
-  // لو فيه audio للـ main icon نضيفه أولاً
-  if (mainIcon.audioUrl) {
-    audiosToPlay.push(
-      mainIcon.audioUrl.startsWith("http")
-        ? mainIcon.audioUrl
-        : `${BACKEND_URL}${mainIcon.audioUrl}`
-    );
-  }
-
-  // نضيف أصوات الـ subicons المختارة
-  const selectedSubs = selectedIds
+  const selectedIdsToPlay = [...selectedIds];
+  const selectedSubs = selectedIdsToPlay
     .map(id => orderedIcons.find(s => s.id === id))
     .filter(Boolean);
+  const audiosToPlay = selectedSubs
+    .map(sub => getAudioUrl(sub))
+    .filter(Boolean);
 
-  for (let sub of selectedSubs) {
-    if (sub.audioUrl) {
-      audiosToPlay.push(
-        sub.audioUrl.startsWith("http")
-          ? sub.audioUrl
-          : `${BACKEND_URL}${sub.audioUrl}`
-      );
-    }
-  }
-
-  if (audiosToPlay.length === 0) return;
+  if (!audiosToPlay.length) return;
 
   setIsPlaying(true);
 
-  // تشغيل كل الأصوات بالترتيب
-  for (let src of audiosToPlay) {
-    audioRef.current.src = src;
-    await audioRef.current.play();
-    await new Promise(resolve => {
-      audioRef.current.onended = resolve;
-    });
+  try {
+    for (let src of audiosToPlay) {
+      await playAudioSource(audioRef, src);
+    }
+
+    if (enableReorder) {
+      setOrderedIcons(prev => {
+        const spoken = prev.filter(icon => selectedIdsToPlay.includes(icon.id));
+        const remaining = prev.filter(icon => !selectedIdsToPlay.includes(icon.id));
+        const newOrder = [...remaining,...spoken];
+        localStorage.setItem(
+          `iconOrder_${iconId}`,
+          JSON.stringify(newOrder.map(i => i.id))
+        );
+        return newOrder;
+      });
+    }
+
+    setSelectedIds([]);
+  } finally {
+    setIsPlaying(false);
   }
-
-  setIsPlaying(false);
-
-  // لو محتاج إعادة ترتيب
-  if (enableReorder) {
-    setOrderedIcons(prev => {
-      const spoken = prev.filter(icon => selectedIds.includes(icon.id));
-      const remaining = prev.filter(icon => !selectedIds.includes(icon.id));
-      const newOrder = [...remaining, ...spoken];
-      localStorage.setItem(
-        `iconOrder_${iconId}`,
-        JSON.stringify(newOrder.map(i => i.id))
-      );
-      return newOrder;
-    });
-  }
-
-  // تفريغ الاختيارات
-  setSelectedIds([]);
 };
 
 /* ================= CAMERA (Mobile-Compatible) ================= */
@@ -411,31 +446,44 @@ if(!mainIcon) return <p className="text-center mt-5">جاري التحميل...<
 
 return (
 
-<Container className="mt-5">
+<div className="subsub-page">
 
-<h2 className="mb-4 text-center">{mainIcon.title}</h2>
+<div className="subsub-hero">
+<button
+type="button"
+className="subsub-back"
+onClick={() => navigate(-1)}
+>
+رجوع
+</button>
 
-<div className="d-flex justify-content-center gap-2 mb-3">
+<h1 className="subsub-title">{mainIcon.title}</h1>
+{mainIcon.expression && (
+<p className="subsub-subtitle">{mainIcon.expression}</p>
+)}
+</div>
 
-<select className="form-select w-auto" value={timeOption} onChange={e=>setTimeOption(e.target.value)}>
+<div className="subsub-controls">
+
+<select className="subsub-select" value={timeOption} onChange={e=>setTimeOption(e.target.value)}>
 <option value="الآن">الآن</option>
 <option value="بعد شوية">بعد شوية</option>
 <option value="غدًا">غدًا</option>
 </select>
 
-<select className="form-select w-auto" value={connector} onChange={e=>setConnector(e.target.value)}>
+<select className="subsub-select" value={connector} onChange={e=>setConnector(e.target.value)}>
 <option value="و">و</option>
 <option value="ثم">ثم</option>
 <option value="أو">أو</option>
 </select>
 
-<Button variant="primary" onClick={playSelectedSounds} disabled={isPlaying || selectedIds.length===0}>
-{isPlaying ? "جاري التشغيل..." : "Speak"}
-</Button>
+<button type="button" className="subsub-action" onClick={playSelectedSounds} disabled={isPlaying || selectedIds.length===0}>
+{isPlaying ? "جاري التشغيل..." : "تشغيل التسجيلات"}
+</button>
 
-<Button variant="success" onClick={()=>setShowModal(true)}>
+<button type="button" className="subsub-action" onClick={()=>setShowModal(true)}>
 Add SubIcon
-</Button>
+</button>
 
 </div>
 
@@ -443,100 +491,110 @@ Add SubIcon
 
 {selectedIds.length>0 && (
 
-<>
+<div className="subsub-sentence-box">
 
-<div className="mb-3 p-3 bg-light border rounded shadow-sm text-center">
+<p className="subsub-sentence-text">
 
-<strong>الجملة:</strong>
-
-<div className="mt-2 fs-5 text-primary">
 {generateSentence()}
-</div>
+</p>
 
-</div>
-
-<div className="preview-bar mb-4 d-flex gap-3 flex-wrap justify-content-center">
+<div className="subsub-preview-row">
   {selectedIds.map(id => {
     const sub = orderedIcons.find(s => s.id === id);
     if (!sub) return null;
 
     return (
-     <div key={id} className="preview-icon">
-
-{imagePreview && (
-<div className="mt-3 text-center">
-<p>Image Preview</p>
+<div key={id} className="subsub-preview-item">
 <img
-  src={imagePreview}
-  style={{ width: "200px", borderRadius: "10px" }}
-  alt="preview"
+  src={normalizeMediaUrl(sub.imageUrl || sub.imgUrl) || DEFAULT_IMAGE}
+  alt={sub.title}
+  className="subsub-preview-image"
+  onError={(event) => {
+    event.currentTarget.onerror = null;
+    event.currentTarget.src = DEFAULT_IMAGE;
+  }}
 />
+<span>{sub.title}</span>
 </div>
-)}
-<div>{sub.title}</div>
-
-</div>
-
 );
 
 })}
 
 </div>
 
-</>
+</div>
 
 )}
 
 
 
-<Row className="g-4">
+{orderedIcons.length ? (
 
-{orderedIcons.map(sub=>(
+<div className={`subsub-grid ${selectedIds.length ? "has-selection" : ""}`}>
 
-<Col key={sub.id} xs={6} sm={4} md={3} lg={2}>
+{orderedIcons.map(sub=>{
+const selected=selectedIds.includes(sub.id);
 
-<Card
-className={`text-center shadow h-100 icon-card ${selectedIds.includes(sub.id) ? "selected-icon" : ""}`}
-style={{cursor:"pointer"}}
-onClick={e=>{
-if(e.target.type!=="checkbox"){
-navigate(`/icons/${iconId}/subicons/${sub.id}`);
+return (
+
+<div key={sub.id} className={`subsub-card ${selected ? "is-selected" : ""}`}>
+
+<button
+type="button"
+className="subsub-check"
+onClick={()=>toggleSelect(sub.id)}
+>
+{selected ? "✔" : "○"}
+</button>
+
+<button
+type="button"
+className="subsub-card-body"
+onClick={()=>{
+if (Array.isArray(sub.subSubIcons) && sub.subSubIcons.length > 0) {
+navigate(`/icons/${iconId}/subicons/${sub.id}/subsubicons`, {
+state: {
+parentIcon: mainIcon,
+parentSubIcon: sub,
+},
+});
+return;
 }
+
+navigate(`/icons/${iconId}/subicons/${sub.id}`);
 }}
 >
-
-<Card.Img
-  variant="top"
-  src={
-    sub.imageUrl?.startsWith("http")
-      ? sub.imageUrl
-      : `${BACKEND_URL}${sub.imageUrl}`
-  }
+<img
+  src={normalizeMediaUrl(sub.imageUrl || sub.imgUrl) || DEFAULT_IMAGE}
+  alt={sub.title}
+  className="subsub-card-image"
+  onError={(event) => {
+    event.currentTarget.onerror = null;
+    event.currentTarget.src = DEFAULT_IMAGE;
+  }}
 />
 
-<Card.Body>
+<div className="subsub-card-footer">
+<h3>{sub.title}</h3>
 
-<Form.Check
-type="checkbox"
-checked={selectedIds.includes(sub.id)}
-onChange={()=>toggleSelect(sub.id)}
-/>
-
-<Card.Title>{sub.title}</Card.Title>
-
-<Card.Text className="text-muted">
+<p>
 {sub.expression}
-</Card.Text>
+</p>
 
-</Card.Body>
+</div>
 
-</Card>
+</button>
 
-</Col>
+</div>
 
-))}
+);
+})}
 
-</Row>
+</div>
+
+) : (
+<p className="text-center mt-4">لا توجد عناصر فرعية.</p>
+)}
 
 <Modal show={showModal} onHide={()=>setShowModal(false)} size="lg">
 
@@ -711,7 +769,7 @@ Save
 
 </Modal>
 
-</Container>
+</div>
 
 );
 

@@ -196,10 +196,13 @@ import {
   emergencyNumbers,
   icons,
   animalSubIcons,
+  educationSubIcons,
   clothesSubIcons,
   familySubIcons,
   feelingsSubIcons,
   foodAndDrinkSubIcons,
+  leisureSubIcons,
+  bathroomSubIcons,
   drinkingSubIcons,
   sleepingSubIcons,
   getDressedSubIcons,
@@ -226,10 +229,15 @@ import {
   musicSubIcons,
   memoriesSubIcons,
   neighboursSubIcons,
+  friendsSubIcons,
+  economicSubIcons,
 } from "./data.js";
+import { subSubIconsData } from "./subSubIconData.js";
+import { resolveSubSubRecordingUrl } from "./subSubIconAudio.js";
 
 const prisma = new PrismaClient();
 const DEFAULT_RLA_TIME_PERIOD = "Morning";
+const resolveAudioUrl = (item) => item.audioUrl ?? item.recordingUrl ?? null;
 
 async function main() {
   console.log("Seeding Main Categories...");
@@ -312,7 +320,7 @@ async function main() {
         expression: icon.expression,
         imageUrl: icon.imageUrl,
         category: icon.category,
-        audioUrl: icon.audioUrl ?? null,
+        audioUrl: resolveAudioUrl(icon),
         mainCategoryId: mainCat.id,
         timePeriodId: timePeriod?.id ?? null
       },
@@ -321,7 +329,7 @@ async function main() {
         expression: icon.expression,
         imageUrl: icon.imageUrl,
         category: icon.category,
-        audioUrl: icon.audioUrl ?? null,
+        audioUrl: resolveAudioUrl(icon),
         mainCategoryId: mainCat.id,
         timePeriodId: timePeriod?.id ?? null
       }
@@ -334,10 +342,13 @@ async function main() {
 
   const allSubIcons = [
     ...animalSubIcons,
+    ...educationSubIcons,
     ...clothesSubIcons,
     ...familySubIcons,
     ...feelingsSubIcons,
     ...foodAndDrinkSubIcons,
+    ...leisureSubIcons,
+    ...bathroomSubIcons,
     ...drinkingSubIcons,
     ...sleepingSubIcons,
     ...getDressedSubIcons,
@@ -364,6 +375,8 @@ async function main() {
     ...musicSubIcons,
     ...memoriesSubIcons,
     ...neighboursSubIcons,
+    ...friendsSubIcons,
+    ...economicSubIcons,
   ];
 
   let totalInserted = 0;
@@ -379,19 +392,24 @@ async function main() {
     }
 
     await prisma.subIcon.upsert({
-      where: { title: subIcon.title },
+      where: {
+        title_iconId: {
+          title: subIcon.title,
+          iconId: icon.id,
+        },
+      },
       update: {
         expression: subIcon.expression,
         imageUrl: subIcon.imageUrl,
         iconId: icon.id,
-        audioUrl: subIcon.audioUrl ?? null,
+        audioUrl: resolveAudioUrl(subIcon),
         category: subIcon.category
       },
       create: {
         title: subIcon.title,
         expression: subIcon.expression,
         imageUrl: subIcon.imageUrl,
-        audioUrl: subIcon.audioUrl ?? null,
+        audioUrl: resolveAudioUrl(subIcon),
         iconId: icon.id,
         category: subIcon.category
       }
@@ -401,6 +419,66 @@ async function main() {
   }
 
   console.log(`SubIcons done. Total processed: ${totalInserted} / ${allSubIcons.length}`);
+
+  console.log("Seeding SubSubIcons...");
+
+  let totalSubSubIcons = 0;
+
+  for (const subSubIcon of subSubIconsData) {
+    const parentSubIcon = await prisma.subIcon.findFirst({
+      where: {
+        title: subSubIcon.parentTitle,
+        category: subSubIcon.category,
+      },
+    });
+
+    if (!parentSubIcon) {
+      console.warn(
+        `Parent SubIcon "${subSubIcon.parentTitle}" in category "${subSubIcon.category}" not found, skipping SubSubIcon "${subSubIcon.title}"`,
+      );
+      continue;
+    }
+
+    await prisma.subSubIcon.upsert({
+      where: {
+        title_subIconId: {
+          title: subSubIcon.title,
+          subIconId: parentSubIcon.id,
+        },
+      },
+      update: {
+        expression: subSubIcon.expression,
+        imageUrl: subSubIcon.imageUrl,
+        audioUrl: resolveSubSubRecordingUrl({
+          category: subSubIcon.category,
+          parentTitle: subSubIcon.parentTitle,
+          recordingUrl: subSubIcon.recordingUrl,
+          parentAudioUrl: parentSubIcon.audioUrl,
+        }),
+        category: subSubIcon.category,
+        subIconId: parentSubIcon.id,
+      },
+      create: {
+        title: subSubIcon.title,
+        expression: subSubIcon.expression,
+        imageUrl: subSubIcon.imageUrl,
+        audioUrl: resolveSubSubRecordingUrl({
+          category: subSubIcon.category,
+          parentTitle: subSubIcon.parentTitle,
+          recordingUrl: subSubIcon.recordingUrl,
+          parentAudioUrl: parentSubIcon.audioUrl,
+        }),
+        category: subSubIcon.category,
+        subIconId: parentSubIcon.id,
+      },
+    });
+
+    totalSubSubIcons++;
+  }
+
+  console.log(
+    `SubSubIcons done. Total processed: ${totalSubSubIcons} / ${subSubIconsData.length}`,
+  );
 }
 
 main()

@@ -6,11 +6,35 @@ import { fileURLToPath } from "url";
 import multer from "multer";
 import fs from "fs";
 import fetch from "node-fetch";
+import { resolveSubSubRecordingUrl } from "./prisma/subSubIconAudio.js";
 
 const prisma = new PrismaClient();
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const frontendBuildPath = path.join(__dirname, "../frontend/build");
+const frontendIndexPath = path.join(frontendBuildPath, "index.html");
+
+const hasFrontendBuild = () => fs.existsSync(frontendIndexPath);
+const isBrowserPageRequest = (req) =>
+  req.method === "GET" && String(req.headers.accept || "").includes("text/html");
+const sendFrontend = (req, res, next) => {
+  if (!hasFrontendBuild()) return next();
+  return res.sendFile(frontendIndexPath);
+};
+const frontendPageRoutes = [
+  /^\/$/,
+  /^\/main-categories\/?$/,
+  /^\/maincategories\/[^/]+\/timeperiods\/?$/,
+  /^\/timeperiods\/[^/]+\/icons\/?$/,
+  /^\/icons\/[^/]+\/?$/,
+  /^\/icons\/[^/]+\/subicons\/[^/]+\/?$/,
+  /^\/icons\/[^/]+\/subicons\/[^/]+\/subsubicons\/?$/,
+  /^\/icons\/[^/]+\/subicons\/[^/]+\/subsubicons\/[^/]+\/?$/,
+  /^\/subicons\/[^/]+\/?$/,
+  /^\/emergency\/?$/,
+  /^\/training\/?$/,
+];
 
 // ===== إعداد Multer =====
 const storage = multer.diskStorage({
@@ -21,14 +45,22 @@ const upload = multer({ storage });
 
 //app.use(cors());
 app.use(cors({
-  origin: ["http://localhost:3000", "http://192.168.0.103:3000", "http://168.231.101.20:5552" , "https://tts-eight-iota.vercel.app"], // المواقع المسموح لها
+  origin: ["http://localhost:3000", "http://localhost:5551", "http://192.168.0.103:3000", "http://168.231.101.20:5552" , "https://tts-eight-iota.vercel.app"], // المواقع المسموح لها
   methods: ["GET","POST","PUT","DELETE"],
   credentials: true 
 }));
 app.use(express.json());
 app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use(express.static(frontendBuildPath, { index: false }));
+app.use((req, res, next) => {
+  if (isBrowserPageRequest(req) && frontendPageRoutes.some((route) => route.test(req.path))) {
+    return sendFrontend(req, res, next);
+  }
 
-app.get("/", (req, res) => res.send("Backend is running!"));
+  return next();
+});
+
+app.get("/health", (req, res) => res.send("Backend is running!"));
 
 // ===== دالة لتحميل الملفات من رابط =====
 async function downloadFile(url, folder = "public/uploads") {
@@ -41,14 +73,51 @@ const buffer = Buffer.from(await res.arrayBuffer());
     return `/public/uploads/${filename}`;
 
 }
+
+const subIconInclude = {
+  subSubIcons: true,
+};
+
+const iconInclude = {
+  subIcons: {
+    include: subIconInclude,
+  },
+};
+
+const serializeSubSubIcon = (subSubIcon, parentSubIcon = null) => ({
+  ...subSubIcon,
+  recordingUrl: resolveSubSubRecordingUrl({
+    category: subSubIcon?.category ?? parentSubIcon?.category,
+    parentTitle: parentSubIcon?.title,
+    audioUrl: subSubIcon?.audioUrl ?? null,
+    parentAudioUrl: parentSubIcon?.audioUrl ?? null,
+  }),
+});
+
+const serializeSubIcon = (subIcon) => ({
+  ...subIcon,
+  recordingUrl: subIcon?.audioUrl ?? null,
+  subSubIcons: Array.isArray(subIcon?.subSubIcons)
+    ? subIcon.subSubIcons.map((subSubIcon) => serializeSubSubIcon(subSubIcon, subIcon))
+    : [],
+});
+
+const serializeIcon = (icon) => ({
+  ...icon,
+  recordingUrl: icon?.audioUrl ?? null,
+  subIcons: Array.isArray(icon?.subIcons)
+    ? icon.subIcons.map(serializeSubIcon)
+    : [],
+});
+
 // ===== ICON APIs =====
 app.get("/icons", async (req, res) => {
   const { category } = req.query;
   try {
     const icons = category
-      ? await prisma.icon.findMany({ where: { category: String(category) }, include: { subIcons: true } })
-      : await prisma.icon.findMany({ include: { subIcons: true } });
-    res.json(icons);
+      ? await prisma.icon.findMany({ where: { category: String(category) }, include: iconInclude })
+      : await prisma.icon.findMany({ include: iconInclude });
+    res.json(icons.map(serializeIcon));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -70,7 +139,13 @@ app.post("/icons/:iconId/subicons", upload.fields([
   { name: "audio", maxCount: 1 }
 ]), async (req, res) => {
   const iconId = parseInt(req.params.iconId);
-  const { title, expression, imageUrl: imageUrlLink, audioUrl: audioUrlLink } = req.body;
+  const {
+    title,
+    expression,
+    imageUrl: imageUrlLink,
+    audioUrl: audioUrlLink,
+    recordingUrl: recordingUrlLink,
+  } = req.body;
 
   try {
     const icon = await prisma.icon.findUnique({ where: { id: iconId } });
@@ -85,7 +160,9 @@ app.post("/icons/:iconId/subicons", upload.fields([
 
     // ===== التعامل مع روابط من النت =====
     if (!imagePath && imageUrlLink) imagePath = await downloadFile(imageUrlLink);
-    if (!audioPath && audioUrlLink) audioPath = await downloadFile(audioUrlLink);
+    if (!audioPath && (audioUrlLink || recordingUrlLink)) {
+      audioPath = await downloadFile(audioUrlLink || recordingUrlLink);
+    }
 
     const subIcon = await prisma.subIcon.create({
       data: {
@@ -96,9 +173,10 @@ app.post("/icons/:iconId/subicons", upload.fields([
         category: icon.category,
         iconId,
       },
+      include: subIconInclude,
     });
 
-    res.status(201).json(subIcon);
+    res.status(201).json(serializeSubIcon(subIcon));
 
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -110,9 +188,9 @@ app.get("/subicons", async (req, res) => {
   const { category } = req.query;
   try {
     const subIcons = category
-      ? await prisma.subIcon.findMany({ where: { category: String(category) } })
-      : await prisma.subIcon.findMany();
-    res.json(subIcons);
+      ? await prisma.subIcon.findMany({ where: { category: String(category) }, include: subIconInclude })
+      : await prisma.subIcon.findMany({ include: subIconInclude });
+    res.json(subIcons.map(serializeSubIcon));
   } catch (err) {
       console.error("SUBICON ERROR:", err);
     res.status(500).json({ message: err.message });
@@ -123,8 +201,11 @@ app.get("/subicons", async (req, res) => {
 app.get("/icons/:iconId/subicons", async (req, res) => {
   const iconId = parseInt(req.params.iconId);
   try {
-    const subIcons = await prisma.subIcon.findMany({ where: { iconId } });
-    res.json(subIcons);
+    const subIcons = await prisma.subIcon.findMany({
+      where: { iconId },
+      include: subIconInclude,
+    });
+    res.json(subIcons.map(serializeSubIcon));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -143,8 +224,8 @@ app.get("/maincategories", async (req, res) => {
 app.get("/maincategories/:id/icons", async (req, res) => {
   const mainCategoryId = parseInt(req.params.id);
   try {
-    const icons = await prisma.icon.findMany({ where: { mainCategoryId }, include: { subIcons: true } });
-    res.json(icons);
+    const icons = await prisma.icon.findMany({ where: { mainCategoryId }, include: iconInclude });
+    res.json(icons.map(serializeIcon));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -153,9 +234,9 @@ app.get("/maincategories/:id/icons", async (req, res) => {
 app.get("/icons/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   try {
-    const icon = await prisma.icon.findUnique({ where: { id }, include: { subIcons: true } });
+    const icon = await prisma.icon.findUnique({ where: { id }, include: iconInclude });
     if (!icon) return res.status(404).json({ message: "Icon not found" });
-    res.json(icon);
+    res.json(serializeIcon(icon));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -165,9 +246,122 @@ app.get("/icons/:iconId/subicons/:subIconId", async (req, res) => {
   const iconId = parseInt(req.params.iconId);
   const subIconId = parseInt(req.params.subIconId);
   try {
-    const subIcon = await prisma.subIcon.findFirst({ where: { id: subIconId, iconId } });
+    const subIcon = await prisma.subIcon.findFirst({
+      where: { id: subIconId, iconId },
+      include: {
+        ...subIconInclude,
+        icon: true,
+      },
+    });
     if (!subIcon) return res.status(404).json({ message: "SubIcon not found" });
-    res.json(subIcon);
+    res.json({
+      ...serializeSubIcon(subIcon),
+      icon: subIcon.icon ? serializeIcon({ ...subIcon.icon, subIcons: [] }) : null,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post("/subicons/:subIconId/subsubicons", upload.fields([
+  { name: "image", maxCount: 1 },
+  { name: "audio", maxCount: 1 }
+]), async (req, res) => {
+  const subIconId = parseInt(req.params.subIconId);
+  const {
+    title,
+    expression,
+    imageUrl: imageUrlLink,
+    audioUrl: audioUrlLink,
+    recordingUrl: recordingUrlLink,
+  } = req.body;
+
+  try {
+    const parentSubIcon = await prisma.subIcon.findUnique({ where: { id: subIconId } });
+    if (!parentSubIcon) {
+      return res.status(404).json({ message: "Parent SubIcon not found" });
+    }
+
+    const imageFile = req.files?.image ? req.files.image[0] : null;
+    const audioFile = req.files?.audio ? req.files.audio[0] : null;
+
+    let imagePath = imageFile ? `/public/uploads/${imageFile.filename}` : "";
+    let audioPath = audioFile ? `/public/uploads/${audioFile.filename}` : "";
+
+    if (!imagePath && imageUrlLink) imagePath = await downloadFile(imageUrlLink);
+    if (!audioPath && (audioUrlLink || recordingUrlLink)) {
+      audioPath = await downloadFile(audioUrlLink || recordingUrlLink);
+    }
+
+    const subSubIcon = await prisma.subSubIcon.create({
+      data: {
+        title,
+        expression,
+        imageUrl: imagePath,
+        audioUrl: audioPath,
+        category: parentSubIcon.category,
+        subIconId,
+      },
+    });
+
+    res.status(201).json(serializeSubSubIcon(subSubIcon, parentSubIcon));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get("/subicons/:subIconId/subsubicons", async (req, res) => {
+  const subIconId = parseInt(req.params.subIconId);
+  try {
+    const subSubIcons = await prisma.subSubIcon.findMany({
+      where: { subIconId },
+      orderBy: { id: "asc" },
+    });
+    const parentSubIcon = await prisma.subIcon.findUnique({ where: { id: subIconId } });
+    res.json(subSubIcons.map((subSubIcon) => serializeSubSubIcon(subSubIcon, parentSubIcon)));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get("/icons/:iconId/subicons/:subIconId/subsubicons/:subSubIconId", async (req, res) => {
+  const iconId = parseInt(req.params.iconId);
+  const subIconId = parseInt(req.params.subIconId);
+  const subSubIconId = parseInt(req.params.subSubIconId);
+
+  try {
+    const subSubIcon = await prisma.subSubIcon.findFirst({
+      where: {
+        id: subSubIconId,
+        subIconId,
+        subIcon: {
+          iconId,
+        },
+      },
+      include: {
+        subIcon: {
+          include: {
+            icon: true,
+          },
+        },
+      },
+    });
+
+    if (!subSubIcon) {
+      return res.status(404).json({ message: "SubSubIcon not found" });
+    }
+
+    res.json({
+      ...serializeSubSubIcon(subSubIcon, subSubIcon.subIcon),
+      subIcon: subSubIcon.subIcon
+        ? {
+            ...serializeSubIcon({ ...subSubIcon.subIcon, subSubIcons: [] }),
+            icon: subSubIcon.subIcon.icon
+              ? serializeIcon({ ...subSubIcon.subIcon.icon, subIcons: [] })
+              : null,
+          }
+        : null,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -211,7 +405,7 @@ app.get("/timeperiods/:id/icons", async (req, res) => {
     try {
       icons = await prisma.icon.findMany({
         where: { timePeriodId },
-        include: { subIcons: true }
+        include: iconInclude
       });
     } catch (err) {
       if (!String(err?.message || "").includes("Unknown argument `timePeriodId`")) {
@@ -231,7 +425,8 @@ app.get("/timeperiods/:id/icons", async (req, res) => {
 
       const iconIds = rawIcons.map((icon) => icon.id);
       const subIcons = await prisma.subIcon.findMany({
-        where: { iconId: { in: iconIds } }
+        where: { iconId: { in: iconIds } },
+        include: subIconInclude,
       });
 
       const subIconsByIconId = subIcons.reduce((acc, subIcon) => {
@@ -244,11 +439,12 @@ app.get("/timeperiods/:id/icons", async (req, res) => {
 
       icons = rawIcons.map((icon) => ({
         ...icon,
-        subIcons: subIconsByIconId[icon.id] || []
+        recordingUrl: icon.audioUrl ?? null,
+        subIcons: (subIconsByIconId[icon.id] || []).map(serializeSubIcon)
       }));
     }
 
-    res.json(icons);
+    res.json(icons.map(serializeIcon));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -340,5 +536,13 @@ app.post("/speech/attempts", async (req, res) => {
   }
 });
 
+app.get(/.*/, (req, res, next) => {
+  if (isBrowserPageRequest(req)) {
+    return sendFrontend(req, res, next);
+  }
+
+  return next();
+});
+
 const PORT = 5551;
-app.listen(PORT, "0.0.0.0",() => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, "0.0.0.0",() => console.log(`Project running on http://localhost:${PORT}`));

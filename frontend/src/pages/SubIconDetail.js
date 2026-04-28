@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Container, Row, Col, Button } from "react-bootstrap";
-import { API_BASE_URL } from "../api/api";
+import { API_BASE_URL, normalizeMediaUrl } from "../api/api";
+
+const DEFAULT_IMAGE = normalizeMediaUrl("/public/default.jpg");
 function SubIconDetail() {
   const { iconId, subIconId } = useParams();
   const [subIcon, setSubIcon] = useState(null);
@@ -20,14 +22,22 @@ function SubIconDetail() {
     if (iconId && subIconId) fetchSubIcon();
   }, [iconId, subIconId]);
 
-  const handleSpeak = () => {
-    if (!subIcon || !subIcon.audioUrl) return;
+  const audioUrl = normalizeMediaUrl(subIcon?.recordingUrl || subIcon?.audioUrl);
+
+  const handleSpeak = async () => {
+    if (!audioUrl) return;
 
     setLoadingAudio(true);
-    const audio = new Audio(`${API_BASE_URL}${subIcon.audioUrl}`);
-    audio.play();
+    const audio = new Audio(audioUrl);
     audio.onended = () => setLoadingAudio(false);
     audio.onerror = () => setLoadingAudio(false);
+
+    try {
+      await audio.play();
+    } catch (error) {
+      console.log("SubIcon audio error:", error);
+      setLoadingAudio(false);
+    }
   };
 
   if (!subIcon) return <p className="text-center mt-5">جاري التحميل...</p>;
@@ -38,10 +48,14 @@ function SubIconDetail() {
         {/* الصورة على الشمال */}
         <Col md={5} className="text-center mb-4 mb-md-0">
           <img
-            src={`${API_BASE_URL}${subIcon.imageUrl}`}
+            src={normalizeMediaUrl(subIcon.imageUrl)}
             alt={subIcon.title}
             className="img-fluid rounded shadow"
             style={{ height: "300px" ,width:"600px"}}
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = DEFAULT_IMAGE;
+            }}
           />
         </Col>
 
@@ -49,8 +63,8 @@ function SubIconDetail() {
         <Col md={7} className="text-center text-md-start">
           <h2>{subIcon.title}</h2>
           <p className="text-muted fs-5">{subIcon.expression}</p>
-          <Button onClick={handleSpeak} disabled={loadingAudio}>
-            {loadingAudio ? "جارٍ التشغيل..." : "Speak"}
+          <Button onClick={handleSpeak} disabled={loadingAudio || !audioUrl}>
+            {audioUrl ? (loadingAudio ? "جارٍ التشغيل..." : "Speak") : "لا يوجد تسجيل"}
           </Button>
         </Col>
       </Row>

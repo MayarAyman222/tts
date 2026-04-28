@@ -7,6 +7,8 @@ import MainCategoriesPage from "./pages/MainCategoriesPage";
 import IconsPage from "./pages/IconsPage";
 import SubIconsPage from "./pages/SubIconsPage";
 import SubIconDetail from "./pages/SubIconDetail";
+import SubSubIconsPage from "./pages/SubSubIconsPage";
+import SubSubIconDetail from "./pages/SubSubIconDetail";
 import TimePeriodsPage from "./pages/TimePeriodsPage";
 import EmergencyPage from "./pages/EmergencyPage";
 import TrainingPage from "./pages/TrainingPage";
@@ -29,6 +31,14 @@ function App() {
 
         <Route path="/subicons/:iconId" element={<SubIconsPage />} />
         <Route path="/icons/:iconId/subicons/:subIconId" element={<SubIconDetail />} />
+        <Route
+          path="/icons/:iconId/subicons/:subIconId/subsubicons"
+          element={<SubSubIconsPage />}
+        />
+        <Route
+          path="/icons/:iconId/subicons/:subIconId/subsubicons/:subSubIconId"
+          element={<SubSubIconDetail />}
+        />
       </Routes>
     </Router>
   );
