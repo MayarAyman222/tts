@@ -6,7 +6,11 @@ import { fileURLToPath } from "url";
 import multer from "multer";
 import fs from "fs";
 import fetch from "node-fetch";
-import { resolveSubSubRecordingUrl } from "./prisma/subSubIconAudio.js";
+import {
+  resolveIconRecordingUrl,
+  resolveSubIconRecordingUrl,
+  resolveSubSubRecordingUrl,
+} from "./prisma/subSubIconAudio.js";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -94,21 +98,42 @@ const serializeSubSubIcon = (subSubIcon, parentSubIcon = null) => ({
   }),
 });
 
-const serializeSubIcon = (subIcon) => ({
-  ...subIcon,
-  recordingUrl: subIcon?.audioUrl ?? null,
-  subSubIcons: Array.isArray(subIcon?.subSubIcons)
+const serializeSubIcon = (subIcon) => {
+  const subSubIcons = Array.isArray(subIcon?.subSubIcons)
     ? subIcon.subSubIcons.map((subSubIcon) => serializeSubSubIcon(subSubIcon, subIcon))
-    : [],
-});
+    : [];
 
-const serializeIcon = (icon) => ({
-  ...icon,
-  recordingUrl: icon?.audioUrl ?? null,
-  subIcons: Array.isArray(icon?.subIcons)
+  return {
+    ...subIcon,
+    recordingUrl: resolveSubIconRecordingUrl({
+      category: subIcon?.category,
+      title: subIcon?.title,
+      audioUrl: subIcon?.audioUrl ?? null,
+      childRecordingUrls: subSubIcons.map((subSubIcon) => (
+        subSubIcon?.recordingUrl || subSubIcon?.audioUrl
+      )),
+    }),
+    subSubIcons,
+  };
+};
+
+const serializeIcon = (icon) => {
+  const subIcons = Array.isArray(icon?.subIcons)
     ? icon.subIcons.map(serializeSubIcon)
-    : [],
-});
+    : [];
+
+  return {
+    ...icon,
+    recordingUrl: resolveIconRecordingUrl({
+      category: icon?.category,
+      audioUrl: icon?.audioUrl ?? null,
+      childRecordingUrls: subIcons.map((subIcon) => (
+        subIcon?.recordingUrl || subIcon?.audioUrl
+      )),
+    }),
+    subIcons,
+  };
+};
 
 // ===== ICON APIs =====
 app.get("/icons", async (req, res) => {

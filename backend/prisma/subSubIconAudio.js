@@ -69,3 +69,40 @@ export const resolveSubSubRecordingUrl = ({
     DEFAULT_SUBSUB_RECORDING_URL
   );
 };
+
+export const resolveSubIconRecordingUrl = ({
+  category,
+  title,
+  recordingUrl,
+  audioUrl,
+  childRecordingUrls = [],
+} = {}) => {
+  const groupKey = category && title ? `${category}::${title}` : null;
+  const childRecordingUrl = childRecordingUrls.find(Boolean);
+
+  return (
+    recordingUrl ??
+    audioUrl ??
+    childRecordingUrl ??
+    (groupKey ? GROUP_RECORDING_FALLBACKS[groupKey] : null) ??
+    (category ? CATEGORY_RECORDING_FALLBACKS[category] : null) ??
+    DEFAULT_SUBSUB_RECORDING_URL
+  );
+};
+
+export const resolveIconRecordingUrl = ({
+  category,
+  recordingUrl,
+  audioUrl,
+  childRecordingUrls = [],
+} = {}) => {
+  const childRecordingUrl = childRecordingUrls.find(Boolean);
+
+  return (
+    recordingUrl ??
+    audioUrl ??
+    (category ? CATEGORY_RECORDING_FALLBACKS[category] : null) ??
+    childRecordingUrl ??
+    null
+  );
+};

@@ -7,7 +7,28 @@ import "./SubSubIconsPage.css";
 import { API_BASE_URL, normalizeMediaUrl } from "../api/api";
 
 const AUDIO_PLAYBACK_RATE = 1.4;
-const AUDIO_FALLBACK_TIMEOUT_MS = 15000;
+const AUDIO_FALLBACK_TIMEOUT_MS = 7000;
+const CATEGORY_AUDIO_FALLBACKS = {
+  "Food and Drink": "/public/recordss/Eating.m4a",
+  Breakfast: "/public/recordss/Eating.m4a",
+  Lunch: "/public/recordss/Eating.m4a",
+  Dinner: "/public/recordss/Eating.m4a",
+  Snack: "/public/recordss/Eating.m4a",
+  Drinking: "/public/recordss/Water.m4a",
+  Clothes: "/public/recordss/Clothes.m4a",
+  Medicine: "/public/recordss/Medicine.m4a",
+  Family: "/public/recordss/Family.m4a",
+  Feelings: "/public/recordss/Feelings.m4a",
+  Places: "/public/recordss/Places.m4a",
+  places: "/public/recordss/Places.m4a",
+  Questions: "/public/recordss/Q.m4a",
+  Relations: "/public/recordss/Relations.m4a",
+  Times: "/public/recordss/Times.m4a",
+  Tools: "/public/recordss/Tools.m4a",
+  Transport: "/public/recordss/Transport.m4a",
+  Verbs: "/public/recordss/Verbs.m4a",
+};
+const REORDER_CATEGORIES = ["Food and Drink","Medicine"];
 
 function SubIconsPage() {
 
@@ -25,8 +46,7 @@ const [connector,setConnector]=useState("و");
 
 const [isPlaying,setIsPlaying]=useState(false);
 const audioRef=useRef(new Audio());
-
-const reorderCategories=["Food and Drink","Medicine"];
+const preloadedAudioRef=useRef(new Map());
 
 /* ================= MODAL STATES ================= */
 
@@ -81,7 +101,7 @@ const data=await res.json();
 
 setMainIcon(data);
 
-const enableReorder=reorderCategories.includes(data.category);
+const enableReorder=REORDER_CATEGORIES.includes(data.category);
 
 if(!enableReorder){
 setOrderedIcons(data.subIcons || []);
@@ -120,13 +140,25 @@ console.log(err);
 
 fetchData();
 
-},[iconId,BACKEND_URL,reorderCategories]);
+},[iconId,BACKEND_URL]);
 
 useEffect(() => () => {
   if (audioRef.current) {
     audioRef.current.pause();
-    audioRef.current.src = "";
+    audioRef.current.removeAttribute("src");
+    audioRef.current.load();
   }
+
+  if (typeof window !== "undefined" && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+
+  preloadedAudioRef.current.forEach(audio => {
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+  });
+  preloadedAudioRef.current.clear();
 }, []);
 
 /* ================= SELECT ICON ================= */
@@ -147,30 +179,125 @@ const generateSentence=()=>{
 
 if(!mainIcon) return "";
 
-const expressions=selectedIds
-.map(id=>{
-const sub=orderedIcons.find(s=>s.id===id);
-return sub?sub.expression:"";
-})
+const expressions=getSelectedSubIcons(selectedIds)
+.map(getSpeechText)
 .filter(Boolean);
 
 if(expressions.length===0) return "";
 
-return `${timeOption} ${mainIcon.expression} ${connector} ${expressions.join(` ${connector} `)}`;
+return `${timeOption} ${getSpeechText(mainIcon)} ${connector} ${expressions.join(` ${connector} `)}`.trim();
 
 };
 
-const getAudioUrl = (item) => normalizeMediaUrl(item?.recordingUrl || item?.audioUrl);
+const getDirectAudioUrl = (item) => {
+  if (!item) return "";
+  const hasAudioUrlField = Object.prototype.hasOwnProperty.call(item, "audioUrl");
+  return item.audioUrl || (!hasAudioUrlField ? item.recordingUrl : "");
+};
+
+const getSpeechText = (item) => String(item?.expression || item?.title || "").trim();
+
+const getSelectedSubIcons = (ids = selectedIds) =>
+  ids
+    .map(id => orderedIcons.find(s => s.id === id))
+    .filter(Boolean);
+
+const buildSpeechQueue = (ids = selectedIds) => {
+  if (!mainIcon) return [];
+
+  const selectedSubs = getSelectedSubIcons(ids);
+  return [
+    { item: mainIcon, preferCategoryFallback: true, allowNestedFallback: true },
+    ...selectedSubs.map(item => ({ item })),
+  ]
+    .map(({ item, preferCategoryFallback, allowNestedFallback }) => ({
+      item,
+      text: getSpeechText(item),
+      audioUrl: getAudioUrl(item, { preferCategoryFallback, allowNestedFallback }),
+    }))
+    .filter(segment => segment.text || segment.audioUrl);
+};
+
+const getChildAudioUrl = (item) => {
+  const childLists = [item?.subSubIcons, item?.subIcons];
+
+  for (const childList of childLists) {
+    if (!Array.isArray(childList)) continue;
+
+    const childWithAudio = childList.find(child => getDirectAudioUrl(child));
+    if (childWithAudio) return getDirectAudioUrl(childWithAudio);
+  }
+
+  return "";
+};
+
+const getAudioUrl = (
+  item,
+  { preferCategoryFallback = false, allowNestedFallback = false } = {},
+) => {
+  const directAudioUrl = getDirectAudioUrl(item);
+  if (directAudioUrl) return normalizeMediaUrl(directAudioUrl);
+
+  const categoryAudioUrl = CATEGORY_AUDIO_FALLBACKS[item?.category];
+  if (preferCategoryFallback && categoryAudioUrl) {
+    return normalizeMediaUrl(categoryAudioUrl);
+  }
+
+  if (allowNestedFallback) {
+    const childAudioUrl = getChildAudioUrl(item);
+    if (childAudioUrl) return normalizeMediaUrl(childAudioUrl);
+  }
+
+  return "";
+};
+
+const preloadAudioSource = (src) => {
+  if (!src || preloadedAudioRef.current.has(src)) return;
+
+  const audio = new Audio(src);
+  audio.preload = "auto";
+  audio.load();
+  preloadedAudioRef.current.set(src, audio);
+};
+
+const speakBrowserText = (text) =>
+  new Promise(resolve => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+
+    const synth = window.speechSynthesis;
+    const Utterance = window.SpeechSynthesisUtterance;
+
+    if (!text || !synth || !Utterance) {
+      resolve(false);
+      return;
+    }
+
+    const utterance = new Utterance(text);
+    utterance.lang = "ar-EG";
+    utterance.rate = 0.95;
+    utterance.onend = () => resolve(true);
+    utterance.onerror = () => resolve(false);
+
+    synth.cancel();
+    synth.speak(utterance);
+  });
 
 const playAudioSource = (audioRef, src) =>
   new Promise(resolve => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
+    if (!src) {
+      resolve(false);
+      return;
     }
 
-    const audio = new Audio(src);
+    const audio = audioRef.current || new Audio();
     audioRef.current = audio;
+
+    audio.pause();
+    audio.src = src;
+    audio.currentTime = 0;
     audio.preload = "auto";
     audio.playbackRate = AUDIO_PLAYBACK_RATE;
 
@@ -181,9 +308,14 @@ const playAudioSource = (audioRef, src) =>
       if (settled) return;
       settled = true;
       clearTimeout(timeoutId);
+      const played = audio.readyState > 0;
+      audio.onloadedmetadata = null;
+      audio.onended = null;
+      audio.onerror = null;
       audio.pause();
-      audio.src = "";
-      resolve();
+      audio.removeAttribute("src");
+      audio.load();
+      resolve(played);
     };
 
     const setDurationTimeout = () => {
@@ -199,14 +331,46 @@ const playAudioSource = (audioRef, src) =>
 
     audio.onloadedmetadata = setDurationTimeout;
     audio.onended = finish;
-    audio.onerror = finish;
+    audio.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      audio.onloadedmetadata = null;
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      resolve(false);
+    };
     timeoutId = setTimeout(finish, AUDIO_FALLBACK_TIMEOUT_MS);
 
+    audio.load();
     const playPromise = audio.play();
     if (playPromise?.catch) {
-      playPromise.catch(finish);
+      playPromise.catch(() => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        audio.onloadedmetadata = null;
+        audio.onended = null;
+        audio.onerror = null;
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+        resolve(false);
+      });
     }
   });
+
+useEffect(() => {
+  if (!mainIcon || !selectedIds.length) return;
+
+  buildSpeechQueue(selectedIds)
+    .map(segment => segment.audioUrl)
+    .filter(Boolean)
+    .forEach(preloadAudioSource);
+}, [mainIcon, orderedIcons, selectedIds]);
 
 /* ================= PLAY AUDIO ================= */
 
@@ -269,22 +433,20 @@ setSelectedIds([]);
 const playSelectedSounds = async () => {
   if (!mainIcon) return;
 
-  const enableReorder = reorderCategories.includes(mainIcon.category);
+  const enableReorder = REORDER_CATEGORIES.includes(mainIcon.category);
   const selectedIdsToPlay = [...selectedIds];
-  const selectedSubs = selectedIdsToPlay
-    .map(id => orderedIcons.find(s => s.id === id))
-    .filter(Boolean);
-  const audiosToPlay = selectedSubs
-    .map(sub => getAudioUrl(sub))
-    .filter(Boolean);
+  const speechQueue = buildSpeechQueue(selectedIdsToPlay);
 
-  if (!audiosToPlay.length) return;
+  if (!speechQueue.length) return;
 
   setIsPlaying(true);
 
   try {
-    for (let src of audiosToPlay) {
-      await playAudioSource(audioRef, src);
+    for (let segment of speechQueue) {
+      const audioPlayed = await playAudioSource(audioRef, segment.audioUrl);
+      if (!audioPlayed) {
+        await speakBrowserText(segment.text);
+      }
     }
 
     if (enableReorder) {
