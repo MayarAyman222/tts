@@ -1,11 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { API_BASE_URL, normalizeMediaUrl } from "../api/api";
+import { API_BASE_URL, normalizeMediaUrl, speakWithBrowserVoice } from "../api/api";
 import "./SubSubIconsPage.css";
 
 const DEFAULT_IMAGE = normalizeMediaUrl("/public/default.jpg");
 const TIME_OPTIONS = ["اليوم", "أمس", "غدًا"];
 const CONNECTOR_OPTIONS = ["و", "أو", "ثم"];
+const VOICE_MODE_OPTIONS = [
+  { value: "human", label: "Human" },
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+];
 
 function SubSubIconsPage() {
   const { iconId, subIconId } = useParams();
@@ -17,6 +22,7 @@ function SubSubIconsPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [timeOption, setTimeOption] = useState(TIME_OPTIONS[0]);
   const [connector, setConnector] = useState(CONNECTOR_OPTIONS[0]);
+  const [voiceMode, setVoiceMode] = useState("human");
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [parentSubIcon, setParentSubIcon] = useState(location.state?.parentSubIcon || null);
@@ -81,15 +87,19 @@ function SubSubIconsPage() {
   const generateSentence = () => {
     const selectedExpressions = subSubIcons
       .filter((item) => selectedIds.includes(item.id))
-      .map((item) => item?.expression)
+      .map((item) => String(item?.expression || item?.title || "").trim())
       .filter(Boolean);
 
     if (!selectedExpressions.length) {
       return "";
     }
 
-    const parentExpression = parentSubIcon?.expression || "";
-    return `${timeOption} ${parentExpression} ${connector} ${selectedExpressions.join(` ${connector} `)}`.trim();
+    const parentExpression = String(parentSubIcon?.expression || parentSubIcon?.title || "").trim();
+    const sentenceStart = [timeOption, parentExpression].filter(Boolean).join(" ");
+    return [sentenceStart, selectedExpressions.join(` ${connector} `)]
+      .filter(Boolean)
+      .join(` ${connector} `)
+      .trim();
   };
 
   const selectedSubSubIcons = useMemo(
@@ -103,41 +113,54 @@ function SubSubIconsPage() {
   const handleSpeak = async () => {
     if (!selectedIds.length) return;
 
-    const queue = [];
-    const parentAudio = parentSubIcon?.recordingUrl || parentSubIcon?.audioUrl;
-
-    if (parentAudio) {
-      queue.push(normalizeMediaUrl(parentAudio));
-    }
-
-    selectedSubSubIcons.forEach((item) => {
-      const audioUrl = item?.recordingUrl || item?.audioUrl;
-      if (audioUrl) {
-        queue.push(normalizeMediaUrl(audioUrl));
-      }
-    });
-
-    if (!queue.length) return;
-
     const audio = audioRef.current || new Audio();
     audioRef.current = audio;
+
+    const playSource = (src) =>
+      new Promise((resolve) => {
+        audio.pause();
+        audio.src = src;
+        audio.currentTime = 0;
+        audio.onended = resolve;
+        audio.onerror = resolve;
+
+        const playPromise = audio.play();
+        if (playPromise?.catch) {
+          playPromise.catch(() => resolve());
+        }
+      });
+
     setIsPlaying(true);
 
     try {
-      for (const src of queue) {
-        await new Promise((resolve) => {
-          audio.pause();
-          audio.src = src;
-          audio.currentTime = 0;
-          audio.onended = resolve;
-          audio.onerror = resolve;
-
-          const playPromise = audio.play();
-          if (playPromise?.catch) {
-            playPromise.catch(() => resolve());
-          }
-        });
+      if (voiceMode !== "human") {
+        const audioPlayed = await speakWithBrowserVoice(generateSentence(), voiceMode);
+        if (!audioPlayed) {
+          alert("Speech is not available in this browser");
+        }
+        return;
       }
+
+      const queue = [];
+      const parentAudio = parentSubIcon?.recordingUrl || parentSubIcon?.audioUrl;
+
+      if (parentAudio) {
+        queue.push(normalizeMediaUrl(parentAudio));
+      }
+
+      selectedSubSubIcons.forEach((item) => {
+        const audioUrl = item?.recordingUrl || item?.audioUrl;
+        if (audioUrl) {
+          queue.push(normalizeMediaUrl(audioUrl));
+        }
+      });
+
+      for (const src of queue) {
+        await playSource(src);
+      }
+    } catch (error) {
+      console.log("TTS playback error:", error);
+      alert(error.message || "TTS failed");
     } finally {
       setIsPlaying(false);
     }
@@ -197,6 +220,18 @@ function SubSubIconsPage() {
           {TIME_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="subsub-select"
+          value={voiceMode}
+          onChange={(event) => setVoiceMode(event.target.value)}
+        >
+          {VOICE_MODE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>

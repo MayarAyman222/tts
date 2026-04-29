@@ -18,7 +18,32 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendBuildPath = path.join(__dirname, "../frontend/build");
 const frontendIndexPath = path.join(frontendBuildPath, "index.html");
+const publicPath = path.join(__dirname, "public");
+const uploadsPath = path.join(publicPath, "uploads");
+const defaultImagePath = path.join(publicPath, "default.jpg");
 
+const loadBackendEnv = () => {
+  const envPath = path.join(__dirname, ".env");
+  if (!fs.existsSync(envPath)) return;
+
+  const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (!match) continue;
+
+    const [, key, rawValue] = match;
+    if (process.env[key]) continue;
+
+    process.env[key] = rawValue
+      .trim()
+      .replace(/^['"]|['"]$/g, "");
+  }
+};
+
+loadBackendEnv();
 const hasFrontendBuild = () => fs.existsSync(frontendIndexPath);
 const isBrowserPageRequest = (req) =>
   req.method === "GET" && String(req.headers.accept || "").includes("text/html");
@@ -40,6 +65,56 @@ const frontendPageRoutes = [
   /^\/training\/?$/,
 ];
 
+const isImageFilename = (filename) =>
+  /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(filename);
+
+const stripOneTimestampPrefix = (filename) =>
+  filename.replace(/^\d+-/, "");
+
+const stripTimestampPrefixes = (filename) =>
+  filename.replace(/^(?:\d+-)+/, "");
+
+const safeDecodePath = (value) => {
+  try {
+    return decodeURIComponent(value);
+  } catch (err) {
+    return value;
+  }
+};
+
+const getFallbackUploadPath = (filename) => {
+  if (!filename || filename !== path.basename(filename) || !fs.existsSync(uploadsPath)) {
+    return "";
+  }
+
+  const onePrefixStripped = stripOneTimestampPrefix(filename);
+  const allPrefixesStripped = stripTimestampPrefixes(filename);
+
+  for (const candidateName of [onePrefixStripped, allPrefixesStripped]) {
+    if (!candidateName || candidateName === filename) continue;
+
+    const candidatePath = path.join(uploadsPath, candidateName);
+    if (fs.existsSync(candidatePath)) {
+      return candidatePath;
+    }
+  }
+
+  const suffix = `-${allPrefixesStripped}`;
+  const fallbackMatches = fs
+    .readdirSync(uploadsPath, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(suffix))
+    .map((entry) => {
+      const candidatePath = path.join(uploadsPath, entry.name);
+      return {
+        path: candidatePath,
+        mtimeMs: fs.statSync(candidatePath).mtimeMs,
+      };
+    })
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+  return fallbackMatches[0]?.path || "";
+};
+
 // ===== إعداد Multer =====
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, "public/uploads")),
@@ -54,7 +129,25 @@ app.use(cors({
   credentials: true 
 }));
 app.use(express.json());
-app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use('/public', express.static(publicPath));
+app.use("/public/uploads", (req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return next();
+  }
+
+  const requestedFilename = path.basename(safeDecodePath(req.path || ""));
+  const fallbackPath = getFallbackUploadPath(requestedFilename);
+
+  if (fallbackPath) {
+    return res.sendFile(fallbackPath);
+  }
+
+  if (isImageFilename(requestedFilename) && fs.existsSync(defaultImagePath)) {
+    return res.sendFile(defaultImagePath);
+  }
+
+  return next();
+});
 app.use(express.static(frontendBuildPath, { index: false }));
 app.use((req, res, next) => {
   if (isBrowserPageRequest(req) && frontendPageRoutes.some((route) => route.test(req.path))) {
@@ -65,6 +158,97 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (req, res) => res.send("Backend is running!"));
+
+const ELEVENLABS_VOICE_IDS = {
+  male: process.env.ELEVENLABS_MALE_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb",
+  female: process.env.ELEVENLABS_FEMALE_VOICE_ID || "hpp4J3VqNfWAUOO0d1Us",
+};
+
+const resolveElevenLabsVoiceId = (voice) => {
+  const requestedVoice = String(voice || "").trim();
+  const normalizedVoice = requestedVoice.toLowerCase();
+
+  if (ELEVENLABS_VOICE_IDS[normalizedVoice]) {
+    return ELEVENLABS_VOICE_IDS[normalizedVoice];
+  }
+
+  if (Object.values(ELEVENLABS_VOICE_IDS).includes(requestedVoice)) {
+    return requestedVoice;
+  }
+
+  return "";
+};
+
+const readElevenLabsError = async (response) => {
+  const errorText = await response.text();
+
+  try {
+    return JSON.parse(errorText);
+  } catch (err) {
+    return errorText;
+  }
+};
+
+app.post("/api/tts/speak", async (req, res) => {
+  const text = String(req.body?.text || "").trim();
+  const voiceId = resolveElevenLabsVoiceId(req.body?.voice);
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+
+  if (!text) {
+    return res.status(400).json({ message: "Text is required" });
+  }
+
+  if (!voiceId) {
+    return res.status(400).json({
+      message: "Voice must be male, female, or a configured ElevenLabs voice ID",
+    });
+  }
+
+  if (!apiKey) {
+    return res.status(500).json({ message: "ElevenLabs API key is not configured" });
+  }
+
+  try {
+    const elevenLabsRes = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "audio/mpeg",
+          "Content-Type": "application/json",
+          "xi-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+          },
+        }),
+      },
+    );
+
+    if (!elevenLabsRes.ok) {
+      const details = await readElevenLabsError(elevenLabsRes);
+      const message = elevenLabsRes.status === 401
+        ? "ElevenLabs API key is invalid or unauthorized. Update ELEVENLABS_API_KEY in backend/.env, then restart the backend."
+        : "ElevenLabs TTS failed";
+
+      return res.status(elevenLabsRes.status).json({
+        message,
+        details,
+      });
+    }
+
+    const audioBuffer = Buffer.from(await elevenLabsRes.arrayBuffer());
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Cache-Control", "no-store");
+    return res.send(audioBuffer);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
 
 // ===== دالة لتحميل الملفات من رابط =====
 async function downloadFile(url, folder = "public/uploads") {

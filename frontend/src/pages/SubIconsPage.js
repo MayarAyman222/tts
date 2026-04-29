@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Form, Button, Modal } from "react-bootstrap";
 import "./SubIconsPage.css";
 import "./SubSubIconsPage.css";
-import { API_BASE_URL, normalizeMediaUrl } from "../api/api";
+import { API_BASE_URL, normalizeMediaUrl, speakWithBrowserVoice } from "../api/api";
 
 const AUDIO_PLAYBACK_RATE = 1.4;
 const AUDIO_FALLBACK_TIMEOUT_MS = 7000;
@@ -29,6 +29,11 @@ const CATEGORY_AUDIO_FALLBACKS = {
   Verbs: "/public/recordss/Verbs.m4a",
 };
 const REORDER_CATEGORIES = ["Food and Drink","Medicine"];
+const VOICE_MODE_OPTIONS = [
+  { value: "human", label: "Human" },
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+];
 
 function SubIconsPage() {
 
@@ -43,6 +48,7 @@ const [selectedIds,setSelectedIds]=useState([]);
 
 const [timeOption,setTimeOption]=useState("الآن");
 const [connector,setConnector]=useState("و");
+const [voiceMode,setVoiceMode]=useState("human");
 
 const [isPlaying,setIsPlaying]=useState(false);
 const audioRef=useRef(new Audio());
@@ -439,16 +445,7 @@ const playSelectedSounds = async () => {
 
   if (!speechQueue.length) return;
 
-  setIsPlaying(true);
-
-  try {
-    for (let segment of speechQueue) {
-      const audioPlayed = await playAudioSource(audioRef, segment.audioUrl);
-      if (!audioPlayed) {
-        await speakBrowserText(segment.text);
-      }
-    }
-
+  const finishSelectionPlayback = () => {
     if (enableReorder) {
       setOrderedIcons(prev => {
         const spoken = prev.filter(icon => selectedIdsToPlay.includes(icon.id));
@@ -463,6 +460,32 @@ const playSelectedSounds = async () => {
     }
 
     setSelectedIds([]);
+  };
+
+  setIsPlaying(true);
+
+  try {
+    if (voiceMode !== "human") {
+      const text = generateSentence();
+      const audioPlayed = await speakWithBrowserVoice(text, voiceMode);
+      if (!audioPlayed) {
+        await speakBrowserText(text);
+      }
+      finishSelectionPlayback();
+      return;
+    }
+
+    for (let segment of speechQueue) {
+      const audioPlayed = await playAudioSource(audioRef, segment.audioUrl);
+      if (!audioPlayed) {
+        await speakBrowserText(segment.text);
+      }
+    }
+
+    finishSelectionPlayback();
+  } catch (error) {
+    console.log("TTS playback error:", error);
+    alert(error.message || "TTS failed");
   } finally {
     setIsPlaying(false);
   }
@@ -637,6 +660,12 @@ onClick={() => navigate(-1)}
 <option value="و">و</option>
 <option value="ثم">ثم</option>
 <option value="أو">أو</option>
+</select>
+
+<select className="subsub-select" value={voiceMode} onChange={e=>setVoiceMode(e.target.value)}>
+{VOICE_MODE_OPTIONS.map(option=>(
+<option key={option.value} value={option.value}>{option.label}</option>
+))}
 </select>
 
 <button type="button" className="subsub-action" onClick={playSelectedSounds} disabled={isPlaying || selectedIds.length===0}>
