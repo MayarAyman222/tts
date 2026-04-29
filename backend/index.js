@@ -124,7 +124,14 @@ const upload = multer({ storage });
 
 //app.use(cors());
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:5551", "http://192.168.0.103:3000", "http://168.231.101.20:5552" , "https://tts-eight-iota.vercel.app"], // المواقع المسموح لها
+  origin: [
+    "http://localhost:3000",
+    "http://192.168.0.103:3000",
+    "http://168.231.101.20:3000",
+    "http://168.231.101.20:5551",
+    "http://168.231.101.20:5552",
+    "https://tts-eight-iota.vercel.app",
+  ], // المواقع المسموح لها
   methods: ["GET","POST","PUT","DELETE"],
   credentials: true 
 }));
@@ -754,4 +761,4 @@ app.get(/.*/, (req, res, next) => {
 });
 
 const PORT = 5551;
-app.listen(PORT, "0.0.0.0",() => console.log(`Project running on http://localhost:${PORT}`));
+app.listen(PORT, "0.0.0.0",() => console.log(`Project running on http://168.231.101.20:${PORT}`));

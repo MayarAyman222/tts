@@ -6,22 +6,16 @@ const EXPLICIT_API_BASE_URL =
 const LOCAL_HOSTNAME_RE =
   /^(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/;
 
-const DEFAULT_REMOTE_API_BASE_URL = "/backend";
+const DEFAULT_API_BASE_URL = "http://168.231.101.20:5551";
 
 const normalizeBaseUrl = (value) => String(value || "").replace(/\/+$/, "");
 
 const getDefaultApiBaseUrl = () => {
   if (typeof window === "undefined") {
-    return DEFAULT_REMOTE_API_BASE_URL;
+    return DEFAULT_API_BASE_URL;
   }
 
-  const { hostname } = window.location;
-
-  if (LOCAL_HOSTNAME_RE.test(hostname)) {
-    return `http://${hostname}:5551`;
-  }
-
-  return DEFAULT_REMOTE_API_BASE_URL;
+  return DEFAULT_API_BASE_URL;
 };
 
 const rawApiBaseUrl = EXPLICIT_API_BASE_URL || getDefaultApiBaseUrl();
