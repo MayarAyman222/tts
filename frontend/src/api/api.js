@@ -6,19 +6,38 @@ const EXPLICIT_API_BASE_URL =
 const LOCAL_HOSTNAME_RE =
   /^(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/;
 
-const DEFAULT_API_BASE_URL = "http://168.231.101.20:5551";
+const PUBLIC_API_BASE_URL = "http://168.231.101.20:5551";
+const REMOTE_PROXY_API_BASE_URL = "/backend";
 
 const normalizeBaseUrl = (value) => String(value || "").replace(/\/+$/, "");
 
-const getDefaultApiBaseUrl = () => {
-  if (typeof window === "undefined") {
-    return DEFAULT_API_BASE_URL;
+const getExplicitApiBaseUrl = () => {
+  if (
+    typeof window !== "undefined" &&
+    window.location.protocol === "https:" &&
+    /^http:\/\//i.test(EXPLICIT_API_BASE_URL)
+  ) {
+    return "";
   }
 
-  return DEFAULT_API_BASE_URL;
+  return EXPLICIT_API_BASE_URL;
 };
 
-const rawApiBaseUrl = EXPLICIT_API_BASE_URL || getDefaultApiBaseUrl();
+const getDefaultApiBaseUrl = () => {
+  if (typeof window === "undefined") {
+    return REMOTE_PROXY_API_BASE_URL;
+  }
+
+  const { hostname, protocol } = window.location;
+
+  if (protocol === "https:" || !LOCAL_HOSTNAME_RE.test(hostname)) {
+    return REMOTE_PROXY_API_BASE_URL;
+  }
+
+  return PUBLIC_API_BASE_URL;
+};
+
+const rawApiBaseUrl = getExplicitApiBaseUrl() || getDefaultApiBaseUrl();
 
 export const API_BASE_URL = normalizeBaseUrl(rawApiBaseUrl);
 

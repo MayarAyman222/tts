@@ -22,6 +22,8 @@ const publicPath = path.join(__dirname, "public");
 const uploadsPath = path.join(publicPath, "uploads");
 const defaultImagePath = path.join(publicPath, "default.jpg");
 
+fs.mkdirSync(uploadsPath, { recursive: true });
+
 const loadBackendEnv = () => {
   const envPath = path.join(__dirname, ".env");
   if (!fs.existsSync(envPath)) return;
@@ -127,6 +129,7 @@ app.use(cors({
   origin: [
     "http://localhost:3000",
     "http://192.168.0.103:3000",
+    "http://192.168.56.1:3000",
     "http://168.231.101.20:3000",
     "http://168.231.101.20:5551",
     "http://168.231.101.20:5552",

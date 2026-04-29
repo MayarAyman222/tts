@@ -508,6 +508,17 @@ const handleCameraCapture = (e) => {
   setImagePreview(URL.createObjectURL(file));
 };
 
+const readResponseError = async (res) => {
+  const errorText = await res.text();
+
+  try {
+    const data = JSON.parse(errorText);
+    return data?.message || data?.details || errorText || "Request failed";
+  } catch (err) {
+    return errorText || `Request failed with status ${res.status}`;
+  }
+};
+
 /* ================= AUDIO RECORD ================= */
 
 /*const startRecording = async () => {
@@ -603,6 +614,10 @@ window.location.reload();
       body: formData
     });
 
+    if (!res.ok) {
+      throw new Error(await readResponseError(res));
+    }
+
     const newSubIcon = await res.json(); // backend يرجع object الجديد
 
     // إضافة الـ SubIcon الجديد مباشرة للـ state
@@ -624,7 +639,7 @@ window.location.reload();
 
   } catch (err) {
     console.error(err);
-    alert("Failed to add SubIcon");
+    alert(`Failed to add SubIcon: ${err.message}`);
   }
 };
 if(!mainIcon) return <p className="text-center mt-5">جاري التحميل...</p>;
