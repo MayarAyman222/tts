@@ -11,11 +11,37 @@ const REMOTE_PROXY_API_BASE_URL = "/backend";
 
 const normalizeBaseUrl = (value) => String(value || "").replace(/\/+$/, "");
 
+const getUrlHostname = (value) => {
+  try {
+    return new URL(value).hostname;
+  } catch (err) {
+    return "";
+  }
+};
+
 const getExplicitApiBaseUrl = () => {
+  if (typeof window === "undefined") {
+    return EXPLICIT_API_BASE_URL;
+  }
+
+  const { hostname, port, protocol } = window.location;
+  const explicitHostname = getUrlHostname(EXPLICIT_API_BASE_URL);
+
   if (
-    typeof window !== "undefined" &&
-    window.location.protocol === "https:" &&
+    protocol === "https:" &&
     /^http:\/\//i.test(EXPLICIT_API_BASE_URL)
+  ) {
+    return "";
+  }
+
+  if (hostname === "168.231.101.20" && port === "5551") {
+    return "";
+  }
+
+  if (
+    EXPLICIT_API_BASE_URL &&
+    LOCAL_HOSTNAME_RE.test(explicitHostname) &&
+    !LOCAL_HOSTNAME_RE.test(hostname)
   ) {
     return "";
   }
@@ -28,7 +54,11 @@ const getDefaultApiBaseUrl = () => {
     return REMOTE_PROXY_API_BASE_URL;
   }
 
-  const { hostname, protocol } = window.location;
+  const { hostname, port, protocol } = window.location;
+
+  if (hostname === "168.231.101.20" && port === "5551") {
+    return "";
+  }
 
   if (protocol === "https:" || !LOCAL_HOSTNAME_RE.test(hostname)) {
     return REMOTE_PROXY_API_BASE_URL;

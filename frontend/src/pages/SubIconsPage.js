@@ -501,11 +501,66 @@ const startCamera = () => {
   }
 };
 
-const handleCameraCapture = (e) => {
+const compressImageFile = (file) =>
+  new Promise((resolve) => {
+    if (!file?.type?.startsWith("image/")) {
+      resolve(file);
+      return;
+    }
+
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      const maxSize = 1280;
+      const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+
+      if (scale === 1 && file.size < 900000) {
+        resolve(file);
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+
+          resolve(new File([blob], `${Date.now()}-camera.jpg`, { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        0.72,
+      );
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+
+    image.src = objectUrl;
+  });
+
+const handleImageFile = async (file) => {
+  if (!file) return;
+
+  const preparedFile = await compressImageFile(file);
+  setImageFile(preparedFile);
+  setImagePreview(URL.createObjectURL(preparedFile));
+};
+
+const handleCameraCapture = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  setImageFile(file);
-  setImagePreview(URL.createObjectURL(file));
+  await handleImageFile(file);
 };
 
 const readResponseError = async (res) => {
@@ -609,7 +664,8 @@ window.location.reload();
   if (audioMethod === "record" && recordedFile) formData.append("audio", recordedFile);
 
   try {
-    const res = await fetch(`${BACKEND_URL}/icons/${iconId}/subicons`, {
+    const requestUrl = `${BACKEND_URL}/icons/${iconId}/subicons`;
+    const res = await fetch(requestUrl, {
       method: "POST",
       body: formData
     });
@@ -639,7 +695,7 @@ window.location.reload();
 
   } catch (err) {
     console.error(err);
-    alert(`Failed to add SubIcon: ${err.message}`);
+    alert(`Failed to add SubIcon: ${err.message}\nAPI: ${BACKEND_URL || window.location.origin}`);
   }
 };
 if(!mainIcon) return <p className="text-center mt-5">جاري التحميل...</p>;
@@ -839,8 +895,7 @@ navigate(`/icons/${iconId}/subicons/${sub.id}`);
 
 {imageMethod==="upload" && (
 <Form.Control type="file" onChange={e=>{
-setImageFile(e.target.files[0]);
-setImagePreview(URL.createObjectURL(e.target.files[0]));
+handleImageFile(e.target.files[0]);
 }}/>
 )}
 
