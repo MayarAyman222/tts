@@ -1,15 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { API_BASE_URL, normalizeMediaUrl, speakWithBrowserVoice } from "../api/api";
+import {
+  API_BASE_URL,
+  isElevenLabsVoiceMode,
+  normalizeMediaUrl,
+  speakWithBrowserVoice,
+  speakWithElevenLabsVoice,
+} from "../api/api";
 import "./SubSubIconsPage.css";
 
 const DEFAULT_IMAGE = normalizeMediaUrl("/public/default.jpg");
 const TIME_OPTIONS = ["اليوم", "أمس", "غدًا"];
 const CONNECTOR_OPTIONS = ["و", "أو", "ثم"];
 const VOICE_MODE_OPTIONS = [
-  { value: "human", label: "Human" },
+  { value: "human", label: "Human Records" },
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },
+  { value: "ai-male", label: "Records with AI - Male" },
+  { value: "ai-female", label: "Records with AI - Female" },
 ];
 
 function SubSubIconsPage() {
@@ -133,6 +141,14 @@ function SubSubIconsPage() {
     setIsPlaying(true);
 
     try {
+      if (isElevenLabsVoiceMode(voiceMode)) {
+        const audioPlayed = await speakWithElevenLabsVoice(generateSentence(), voiceMode);
+        if (!audioPlayed) {
+          throw new Error("ElevenLabs TTS failed");
+        }
+        return;
+      }
+
       if (voiceMode !== "human") {
         const audioPlayed = await speakWithBrowserVoice(generateSentence(), voiceMode);
         if (!audioPlayed) {

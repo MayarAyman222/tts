@@ -128,6 +128,8 @@ const upload = multer({ storage });
 app.use(cors({
   origin: [
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://0.0.0.0:3000",
     "http://192.168.0.103:3000",
     "http://192.168.56.1:3000",
     "https://tts-eight-iota.vercel.app",
@@ -172,12 +174,24 @@ const ELEVENLABS_VOICE_IDS = {
   female: process.env.ELEVENLABS_FEMALE_VOICE_ID || "hpp4J3VqNfWAUOO0d1Us",
 };
 
+const ELEVENLABS_VOICE_ALIASES = {
+  ai: "female",
+  "ai-record": "female",
+  "ai-records": "female",
+  "ai-male": "male",
+  "ai-female": "female",
+  ai_male: "male",
+  ai_female: "female",
+  "records-with-ai": "female",
+};
+
 const resolveElevenLabsVoiceId = (voice) => {
   const requestedVoice = String(voice || "").trim();
   const normalizedVoice = requestedVoice.toLowerCase();
+  const aliasVoice = ELEVENLABS_VOICE_ALIASES[normalizedVoice] || normalizedVoice;
 
-  if (ELEVENLABS_VOICE_IDS[normalizedVoice]) {
-    return ELEVENLABS_VOICE_IDS[normalizedVoice];
+  if (ELEVENLABS_VOICE_IDS[aliasVoice]) {
+    return ELEVENLABS_VOICE_IDS[aliasVoice];
   }
 
   if (Object.values(ELEVENLABS_VOICE_IDS).includes(requestedVoice)) {
@@ -200,7 +214,7 @@ const readElevenLabsError = async (response) => {
 app.post("/api/tts/speak", async (req, res) => {
   const text = String(req.body?.text || "").trim();
   const voiceId = resolveElevenLabsVoiceId(req.body?.voice);
-  const apiKey = process.env.ELEVENLABS_API_KEY;
+  const apiKey = String(process.env.ELEVENLABS_API_KEY || "").trim();
 
   if (!text) {
     return res.status(400).json({ message: "Text is required" });

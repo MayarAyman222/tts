@@ -4,7 +4,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Form, Button, Modal } from "react-bootstrap";
 import "./SubIconsPage.css";
 import "./SubSubIconsPage.css";
-import { API_BASE_URL, normalizeMediaUrl, speakWithBrowserVoice } from "../api/api";
+import {
+  API_BASE_URL,
+  isElevenLabsVoiceMode,
+  normalizeMediaUrl,
+  speakWithBrowserVoice,
+  speakWithElevenLabsVoice,
+} from "../api/api";
 
 const AUDIO_PLAYBACK_RATE = 1.4;
 const AUDIO_FALLBACK_TIMEOUT_MS = 7000;
@@ -30,9 +36,11 @@ const CATEGORY_AUDIO_FALLBACKS = {
 };
 const REORDER_CATEGORIES = ["Food and Drink","Medicine"];
 const VOICE_MODE_OPTIONS = [
-  { value: "human", label: "Human" },
+  { value: "human", label: "Human Records" },
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },
+  { value: "ai-male", label: "Records with AI - Male" },
+  { value: "ai-female", label: "Records with AI - Female" },
 ];
 
 function SubIconsPage() {
@@ -465,6 +473,15 @@ const playSelectedSounds = async () => {
   setIsPlaying(true);
 
   try {
+    if (isElevenLabsVoiceMode(voiceMode)) {
+      const audioPlayed = await speakWithElevenLabsVoice(generateSentence(), voiceMode);
+      if (!audioPlayed) {
+        throw new Error("ElevenLabs TTS failed");
+      }
+      finishSelectionPlayback();
+      return;
+    }
+
     if (voiceMode !== "human") {
       const text = generateSentence();
       const audioPlayed = await speakWithBrowserVoice(text, voiceMode);

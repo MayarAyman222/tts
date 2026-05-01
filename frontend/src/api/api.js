@@ -6,8 +6,18 @@ const EXPLICIT_API_BASE_URL =
 const LOCAL_HOSTNAME_RE =
   /^(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/;
 
-const PUBLIC_API_BASE_URL = "https://tts-production-77b9.up.railway.app";
+const PUBLIC_API_BASE_URL = "https://tts-production-6e70.up.railway.app";
 const LEGACY_API_BASE_URLS = ["http://168.231.101.20:5551"];
+const ELEVENLABS_VOICE_MODE_MAP = {
+  ai: "female",
+  "ai-record": "female",
+  "ai-records": "female",
+  "ai-male": "male",
+  "ai-female": "female",
+  ai_male: "male",
+  ai_female: "female",
+  "records-with-ai": "female",
+};
 
 const normalizeBaseUrl = (value) => String(value || "").replace(/\/+$/, "");
 
@@ -150,6 +160,16 @@ export const speakWithBrowserVoice = async (text, voiceMode = "female") => {
   });
 };
 
+export const isElevenLabsVoiceMode = (voiceMode) => {
+  const normalizedVoiceMode = String(voiceMode || "").trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(ELEVENLABS_VOICE_MODE_MAP, normalizedVoiceMode);
+};
+
+export const resolveElevenLabsVoiceMode = (voiceMode) => {
+  const normalizedVoiceMode = String(voiceMode || "").trim().toLowerCase();
+  return ELEVENLABS_VOICE_MODE_MAP[normalizedVoiceMode] || "female";
+};
+
 export const translateText = async (text, targetLang) => {
   const res = await fetch(`${API_BASE_URL}/api/translate`, {
     method: "POST",
@@ -190,6 +210,41 @@ export const speakText = async (text, voice = "male") => {
   } catch (error) {
     return { ok: false, message: error.message };
   }
+};
+
+export const speakWithElevenLabsVoice = async (text, voiceMode = "ai-female") => {
+  const cleanText = String(text || "").trim();
+  if (!cleanText) return false;
+
+  const url = await generateTtsAudioUrl({
+    text: cleanText,
+    voice: resolveElevenLabsVoiceMode(voiceMode),
+  });
+
+  return new Promise((resolve, reject) => {
+    const audio = new Audio(url);
+    let settled = false;
+
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+
+    audio.onended = () => finish(true);
+    audio.onerror = () => finish(false);
+
+    const playPromise = audio.play();
+    if (playPromise?.catch) {
+      playPromise.catch((error) => {
+        if (settled) return;
+        settled = true;
+        URL.revokeObjectURL(url);
+        reject(error);
+      });
+    }
+  });
 };
 
 export const normalizeMediaUrl = (url) => {

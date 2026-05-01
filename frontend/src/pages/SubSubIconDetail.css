@@ -86,6 +86,16 @@
   margin-bottom: 18px;
 }
 
+.subsub-detail-select {
+  width: 100%;
+  border: 1px solid #d5d8e0;
+  border-radius: 16px;
+  background: #fff;
+  color: #243044;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
 .subsub-detail-speak:disabled {
   opacity: 0.55;
   cursor: not-allowed;

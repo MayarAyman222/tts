@@ -1,9 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { API_BASE_URL, normalizeMediaUrl } from "../api/api";
+import {
+  API_BASE_URL,
+  isElevenLabsVoiceMode,
+  normalizeMediaUrl,
+  speakWithBrowserVoice,
+  speakWithElevenLabsVoice,
+} from "../api/api";
 import "./SubSubIconDetail.css";
 
 const DEFAULT_IMAGE = normalizeMediaUrl("/public/default.jpg");
+const VOICE_MODE_OPTIONS = [
+  { value: "human", label: "Human Records" },
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "ai-male", label: "Records with AI - Male" },
+  { value: "ai-female", label: "Records with AI - Female" },
+];
 
 function SubSubIconDetail() {
   const { iconId, subIconId, subSubIconId } = useParams();
@@ -19,6 +32,7 @@ function SubSubIconDetail() {
   const [volume, setVolume] = useState(1);
   const [speed, setSpeed] = useState(1);
   const [pressed, setPressed] = useState(false);
+  const [voiceMode, setVoiceMode] = useState("human");
 
   useEffect(() => {
     const fetchSubSubIcon = async () => {
@@ -77,36 +91,70 @@ function SubSubIconDetail() {
     [subSubIcon],
   );
 
-  const handleSpeak = async () => {
-    if (!audioUrl) return;
+  const speechText = useMemo(
+    () => String(subSubIcon?.expression || subSubIcon?.title || "").trim(),
+    [subSubIcon],
+  );
 
-    const audio = audioRef.current || new Audio();
-    audioRef.current = audio;
+  const canSpeak = voiceMode !== "human" ? Boolean(speechText) : Boolean(audioUrl);
 
-    try {
-      setSpeaking(true);
+  const playRecording = () =>
+    new Promise((resolve, reject) => {
+      const audio = audioRef.current || new Audio();
+      audioRef.current = audio;
+
       audio.pause();
       audio.src = audioUrl;
       audio.currentTime = 0;
       audio.volume = volume;
       audio.playbackRate = speed;
 
-      audio.onended = () => setSpeaking(false);
-      audio.onerror = () => setSpeaking(false);
+      audio.onended = resolve;
+      audio.onerror = () => reject(new Error("Recording playback failed"));
 
-      await audio.play();
+      const playPromise = audio.play();
+      if (playPromise?.catch) {
+        playPromise.catch(reject);
+      }
+    });
+
+  const handleSpeak = async () => {
+    if (!canSpeak) return;
+
+    try {
+      setSpeaking(true);
+
+      if (isElevenLabsVoiceMode(voiceMode)) {
+        const audioPlayed = await speakWithElevenLabsVoice(speechText, voiceMode);
+        if (!audioPlayed) {
+          throw new Error("ElevenLabs TTS failed");
+        }
+        return;
+      }
+
+      if (voiceMode !== "human") {
+        const audioPlayed = await speakWithBrowserVoice(speechText, voiceMode);
+        if (!audioPlayed) {
+          throw new Error("Browser speech is not available");
+        }
+        return;
+      }
+
+      await playRecording();
     } catch (error) {
       console.log("SubSubIcon detail audio error:", error);
+      alert(error.message || "TTS failed");
+    } finally {
       setSpeaking(false);
     }
   };
 
   if (loading) {
-    return <p className="text-center mt-5">جاري التحميل...</p>;
+    return <p className="text-center mt-5">Loading...</p>;
   }
 
   if (!subSubIcon) {
-    return <p className="text-center mt-5">لا توجد بيانات.</p>;
+    return <p className="text-center mt-5">No data.</p>;
   }
 
   return (
@@ -117,7 +165,7 @@ function SubSubIconDetail() {
           className="subsub-detail-back"
           onClick={() => navigate(-1)}
         >
-          رجوع
+          Back
         </button>
 
         <div className="subsub-detail-card">
@@ -150,18 +198,30 @@ function SubSubIconDetail() {
 
             <p className="subsub-detail-expression">{subSubIcon.expression}</p>
 
+            <select
+              className="subsub-detail-select"
+              value={voiceMode}
+              onChange={(event) => setVoiceMode(event.target.value)}
+            >
+              {VOICE_MODE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
             <button
               type="button"
               className="subsub-detail-speak"
               onClick={handleSpeak}
-              disabled={speaking || !audioUrl}
+              disabled={speaking || !canSpeak}
             >
-              {audioUrl ? (speaking ? "جاري التشغيل..." : "تشغيل التسجيل") : "لا يوجد تسجيل"}
+              {speaking ? "Playing..." : "Speak"}
             </button>
 
             <div className="subsub-detail-controls">
               <label className="subsub-detail-slider">
-                <span>الصوت - {Math.round(volume * 100)}%</span>
+                <span>Volume - {Math.round(volume * 100)}%</span>
                 <input
                   type="range"
                   min="0"
@@ -173,7 +233,7 @@ function SubSubIconDetail() {
               </label>
 
               <label className="subsub-detail-slider">
-                <span>السرعة - {speed.toFixed(2)}x</span>
+                <span>Speed - {speed.toFixed(2)}x</span>
                 <input
                   type="range"
                   min="0.5"
