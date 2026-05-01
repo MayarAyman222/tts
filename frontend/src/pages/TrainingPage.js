@@ -169,7 +169,7 @@ function TrainingPage() {
     const allowInsecure =
       host === "localhost" || host === "127.0.0.1" || host === "[::1]";
     if (!window.isSecureContext && !allowInsecure) {
-      setError("افتح التطبيق من http://168.231.101.20:5551 أو استخدم HTTPS.");
+      setError("افتح التطبيق من https://tts-production-77b9.up.railway.app أو استخدم HTTPS.");
       return;
     }
     if (!SpeechRecognition) {

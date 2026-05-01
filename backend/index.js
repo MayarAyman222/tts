@@ -130,10 +130,8 @@ app.use(cors({
     "http://localhost:3000",
     "http://192.168.0.103:3000",
     "http://192.168.56.1:3000",
-    "http://168.231.101.20:3000",
-    "http://168.231.101.20:5551",
-    "http://168.231.101.20:5552",
     "https://tts-eight-iota.vercel.app",
+    "https://tts-production-77b9.up.railway.app",
   ], // المواقع المسموح لها
   methods: ["GET","POST","PUT","DELETE"],
   credentials: true 
@@ -763,5 +761,5 @@ app.get(/.*/, (req, res, next) => {
   return next();
 });
 
-const PORT = 5551;
-app.listen(PORT, "0.0.0.0",() => console.log(`Project running on http://168.231.101.20:${PORT}`));
+const PORT = process.env.PORT || 5551;
+app.listen(PORT, "0.0.0.0",() => console.log(`Project running on port ${PORT}`));

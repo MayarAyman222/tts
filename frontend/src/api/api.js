@@ -6,8 +6,8 @@ const EXPLICIT_API_BASE_URL =
 const LOCAL_HOSTNAME_RE =
   /^(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/;
 
-const PUBLIC_API_BASE_URL = "http://168.231.101.20:5551";
-const REMOTE_PROXY_API_BASE_URL = "/backend";
+const PUBLIC_API_BASE_URL = "https://tts-production-77b9.up.railway.app";
+const LEGACY_API_BASE_URLS = ["http://168.231.101.20:5551"];
 
 const normalizeBaseUrl = (value) => String(value || "").replace(/\/+$/, "");
 
@@ -24,17 +24,13 @@ const getExplicitApiBaseUrl = () => {
     return EXPLICIT_API_BASE_URL;
   }
 
-  const { hostname, port, protocol } = window.location;
+  const { hostname, protocol } = window.location;
   const explicitHostname = getUrlHostname(EXPLICIT_API_BASE_URL);
 
   if (
     protocol === "https:" &&
     /^http:\/\//i.test(EXPLICIT_API_BASE_URL)
   ) {
-    return "";
-  }
-
-  if (hostname === "168.231.101.20" && port === "5551") {
     return "";
   }
 
@@ -49,23 +45,7 @@ const getExplicitApiBaseUrl = () => {
   return EXPLICIT_API_BASE_URL;
 };
 
-const getDefaultApiBaseUrl = () => {
-  if (typeof window === "undefined") {
-    return REMOTE_PROXY_API_BASE_URL;
-  }
-
-  const { hostname, port, protocol } = window.location;
-
-  if (hostname === "168.231.101.20" && port === "5551") {
-    return "";
-  }
-
-  if (protocol === "https:" || !LOCAL_HOSTNAME_RE.test(hostname)) {
-    return REMOTE_PROXY_API_BASE_URL;
-  }
-
-  return PUBLIC_API_BASE_URL;
-};
+const getDefaultApiBaseUrl = () => PUBLIC_API_BASE_URL;
 
 const rawApiBaseUrl = getExplicitApiBaseUrl() || getDefaultApiBaseUrl();
 
@@ -220,7 +200,7 @@ export const normalizeMediaUrl = (url) => {
       const parsedUrl = new URL(url);
       if (
         LOCAL_HOSTNAME_RE.test(parsedUrl.hostname) ||
-        url.startsWith("http://168.231.101.20:5551")
+        LEGACY_API_BASE_URLS.some((baseUrl) => url.startsWith(baseUrl))
       ) {
         return `${API_BASE_URL}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
       }

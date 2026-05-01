@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/backend/(.*)",
-      "destination": "http://168.231.101.20:5551/$1"
+      "destination": "https://tts-production-77b9.up.railway.app/$1"
     }
   ]
 }
