@@ -179,11 +179,63 @@ export const translateText = async (text, targetLang) => {
   return await res.json();
 };
 
-export const generateTtsAudioUrl = async ({ text, voice }) => {
+export const sendChatMessage = async ({ message, language = "en", history = [] }) => {
+  const res = await fetch(`${API_BASE_URL}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, language, history })
+  });
+
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (err) {
+    data = { message: text };
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.message || "Chat failed");
+  }
+
+  return data;
+};
+
+export const recognizeDrawing = async ({ imageDataUrl, language }) => {
+  const res = await fetch(`${API_BASE_URL}/api/drawing/recognize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageDataUrl, language })
+  });
+
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (err) {
+    data = { message: text };
+  }
+
+  if (!res.ok) {
+    const detailsMessage = typeof data?.details === "string"
+      ? data.details
+      : data?.details?.error?.message;
+
+    throw new Error(
+      res.status === 429
+        ? data?.message || detailsMessage || "Drawing recognition failed"
+        : detailsMessage || data?.message || "Drawing recognition failed",
+    );
+  }
+
+  return data;
+};
+
+export const generateTtsAudioUrl = async ({ text, voice, language }) => {
   const res = await fetch(`${API_BASE_URL}/api/tts/speak`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, voice })
+    body: JSON.stringify({ text, voice, language })
   });
 
   if (!res.ok) {
@@ -203,9 +255,42 @@ export const generateTtsAudioUrl = async ({ text, voice }) => {
   return URL.createObjectURL(blob);
 };
 
-export const speakText = async (text, voice = "male") => {
+export const generateGoogleTtsAudioUrl = async ({ text, language }) => {
+  const res = await fetch(`${API_BASE_URL}/api/tts/gtts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, language })
+  });
+
+  if (!res.ok) {
+    let message = "Google TTS failed";
+    const errorText = await res.text();
+    try {
+      const data = JSON.parse(errorText);
+      message = data?.message || data?.details || message;
+    } catch (err) {
+      message = errorText || message;
+    }
+
+    throw new Error(message);
+  }
+
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+};
+
+export const speakText = async (text, voice = "male", language) => {
   try {
-    const url = await generateTtsAudioUrl({ text, voice });
+    const url = await generateTtsAudioUrl({ text, voice, language });
+    return { ok: true, url };
+  } catch (error) {
+    return { ok: false, message: error.message };
+  }
+};
+
+export const speakDrawingText = async (text, language) => {
+  try {
+    const url = await generateGoogleTtsAudioUrl({ text, language });
     return { ok: true, url };
   } catch (error) {
     return { ok: false, message: error.message };

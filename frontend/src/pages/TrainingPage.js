@@ -6,6 +6,11 @@ const SpeechRecognition =
 
 const NO_SPEECH_GRACE_MS = 900;
 const ATTEMPTS_STORAGE_KEY = "training_attempts_v1";
+const PASSING_SCORE = 70;
+const FAILED_ATTEMPTS_LIMIT = 3;
+
+const getFailureMessage = (attemptNumber) =>
+  attemptNumber >= FAILED_ATTEMPTS_LIMIT ? "Failed" : "Try again";
 
 const normalizeText = (text) => {
   if (!text) return "";
@@ -148,6 +153,7 @@ function TrainingPage() {
   const hadErrorRef = useRef(false);
   const gotResultRef = useRef(false);
   const userStopRef = useRef(false);
+  const recognitionErrorReasonRef = useRef("");
   const startTimeRef = useRef(0);
 
   const loadAttempts = async (word) => {
@@ -157,6 +163,30 @@ function TrainingPage() {
       return;
     }
     setAttempts(getStoredAttemptsForWord(trimmed));
+  };
+
+  const saveNoResultAttempt = () => {
+    const trimmed = String(targetWord || "").trim();
+    if (!trimmed) return;
+
+    const nextAttemptNumber = getStoredAttemptsForWord(trimmed).length + 1;
+    const updatedAttempts = saveAttemptForWord(trimmed, "", 0);
+    setTranscript("");
+    setScore(0);
+    setMessage(getFailureMessage(nextAttemptNumber));
+    setAttempts(updatedAttempts);
+  };
+
+  const shouldSaveNoResultAttempt = (elapsed) => {
+    if (gotResultRef.current || !targetWord.trim() || elapsed < NO_SPEECH_GRACE_MS) {
+      return false;
+    }
+
+    return (
+      userStopRef.current ||
+      !hadErrorRef.current ||
+      recognitionErrorReasonRef.current === "no-speech"
+    );
   };
 
   useEffect(() => {
@@ -188,6 +218,7 @@ function TrainingPage() {
     hadErrorRef.current = false;
     gotResultRef.current = false;
     userStopRef.current = false;
+    recognitionErrorReasonRef.current = "";
     startTimeRef.current = Date.now();
 
     let stream;
@@ -231,10 +262,10 @@ function TrainingPage() {
       const newScore = calcScore(targetWord, text);
       setScore(newScore);
 
-      if (newScore >= 70) {
+      if (newScore >= PASSING_SCORE) {
         setMessage("تم");
       } else {
-        setMessage("Fail and try again");
+        setMessage(getFailureMessage(getStoredAttemptsForWord(targetWord).length + 1));
       }
 
       const lastScore = attempts.length ? attempts[attempts.length - 1].score : null;
@@ -256,6 +287,7 @@ function TrainingPage() {
     recognition.onerror = (event) => {
       const reason = event?.error || "unknown";
       hadErrorRef.current = true;
+      recognitionErrorReasonRef.current = reason;
       if (reason === "no-speech") {
         setError("لم يتم سماع صوت. اقترب من الميكروفون وتكلم بوضوح.");
       } else if (reason === "audio-capture") {
@@ -276,6 +308,9 @@ function TrainingPage() {
     recognition.onend = () => {
       setListening(false);
       const elapsed = Date.now() - startTimeRef.current;
+      if (shouldSaveNoResultAttempt(elapsed)) {
+        saveNoResultAttempt();
+      }
       if (
         !gotResultRef.current &&
         !hadErrorRef.current &&

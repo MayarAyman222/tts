@@ -1,0 +1,83 @@
+.express-drawing-page {
+  max-width: 1180px;
+  padding: 28px 16px 48px;
+}
+
+.express-drawing-header {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.express-drawing-header h1 {
+  color: #1f2937;
+  font-size: 2.25rem;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+
+.express-drawing-header p {
+  color: #5c6576;
+  margin: 0;
+}
+
+.express-drawing-card {
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(31, 41, 55, 0.1);
+}
+
+.express-drawing-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.express-drawing-language {
+  min-width: 220px;
+}
+
+.express-drawing-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.express-drawing-canvas,
+.express-drawing-preview {
+  display: block;
+  width: 100%;
+  border: 1px solid #d5d8e0;
+  border-radius: 8px;
+  background: #fff;
+  touch-action: none;
+}
+
+.express-drawing-canvas {
+  aspect-ratio: 5 / 2;
+  cursor: crosshair;
+}
+
+.express-drawing-preview {
+  height: 180px;
+  object-fit: contain;
+}
+
+.express-drawing-raw {
+  margin: 10px 0 0;
+  color: #5c6576;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 768px) {
+  .express-drawing-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .express-drawing-language,
+  .express-drawing-actions .btn {
+    width: 100%;
+  }
+}

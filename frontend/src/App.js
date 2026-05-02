@@ -12,6 +12,8 @@ import SubSubIconDetail from "./pages/SubSubIconDetail";
 import TimePeriodsPage from "./pages/TimePeriodsPage";
 import EmergencyPage from "./pages/EmergencyPage";
 import TrainingPage from "./pages/TrainingPage";
+import ExpressDrawingPage from "./pages/ExpressDrawingPage";
+import Chat from "./pages/Chat";
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
 
         <Route path="/emergency" element={<EmergencyPage />} />
         <Route path="/training" element={<TrainingPage />} />
+        <Route path="/express-drawing" element={<ExpressDrawingPage />} />
+        <Route path="/chat" element={<Chat />} />
 
         <Route path="/subicons/:iconId" element={<SubIconsPage />} />
         <Route path="/icons/:iconId/subicons/:subIconId" element={<SubIconDetail />} />
