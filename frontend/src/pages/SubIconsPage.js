@@ -11,6 +11,7 @@ import {
   speakWithBrowserVoice,
   speakWithElevenLabsVoice,
 } from "../api/api";
+import { trackRoutinePlayback } from "../utils/dailyRoutine";
 
 const AUDIO_PLAYBACK_RATE = 1.4;
 const AUDIO_FALLBACK_TIMEOUT_MS = 7000;
@@ -449,11 +450,22 @@ const playSelectedSounds = async () => {
 
   const enableReorder = REORDER_CATEGORIES.includes(mainIcon.category);
   const selectedIdsToPlay = [...selectedIds];
+  const selectedSubsToPlay = getSelectedSubIcons(selectedIdsToPlay);
   const speechQueue = buildSpeechQueue(selectedIdsToPlay);
 
   if (!speechQueue.length) return;
 
   const finishSelectionPlayback = () => {
+    trackRoutinePlayback(
+      selectedSubsToPlay.map(sub => ({
+        ...sub,
+        type: "subicon",
+        parentTitle: mainIcon.title,
+        parentCategory: mainIcon.category,
+        sourcePath: `/icons/${iconId}/subicons/${sub.id}`,
+      })),
+    );
+
     if (enableReorder) {
       setOrderedIcons(prev => {
         const spoken = prev.filter(icon => selectedIdsToPlay.includes(icon.id));

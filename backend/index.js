@@ -5,6 +5,8 @@ import { PrismaClient } from "@prisma/client";
 import { fileURLToPath } from "url";
 import multer from "multer";
 import fs from "fs";
+import crypto from "crypto";
+import { promisify } from "util";
 import fetch from "node-fetch";
 import googleTTS from "google-tts-api";
 import tesseract from "tesseract.js";
@@ -71,8 +73,11 @@ const frontendPageRoutes = [
   /^\/subicons\/[^/]+\/?$/,
   /^\/emergency\/?$/,
   /^\/training\/?$/,
+  /^\/daily-routine\/?$/,
   /^\/express-drawing\/?$/,
   /^\/chat\/?$/,
+  /^\/login\/?$/,
+  /^\/signup\/?$/,
 ];
 
 const isImageFilename = (filename) =>
@@ -176,6 +181,158 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (req, res) => res.send("Backend is running!"));
+
+const scryptAsync = promisify(crypto.scrypt);
+const USER_CONDITIONS = new Set([
+  "AUTISM",
+  "STROKE",
+  "ALZHEIMER",
+  "SPEECH_DELAY",
+  "OTHER",
+]);
+
+const ensureAuthTables = async () => {
+  await prisma.$executeRaw`
+    CREATE TABLE IF NOT EXISTS "User" (
+      "id" SERIAL NOT NULL,
+      "firstName" TEXT NOT NULL,
+      "lastName" TEXT NOT NULL,
+      "email" TEXT NOT NULL,
+      "passwordHash" TEXT NOT NULL,
+      "salt" TEXT NOT NULL,
+      "condition" TEXT NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+    )
+  `;
+
+  await prisma.$executeRaw`
+    CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email")
+  `;
+};
+
+const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+
+const isValidEmail = (email) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ""));
+
+const normalizeCondition = (condition) =>
+  String(condition || "").trim().toUpperCase();
+
+const hashPassword = async (password, salt = crypto.randomBytes(16).toString("hex")) => {
+  const derivedKey = await scryptAsync(String(password), salt, 64);
+  return {
+    salt,
+    passwordHash: derivedKey.toString("hex"),
+  };
+};
+
+const verifyPassword = async (password, salt, storedHash) => {
+  if (!salt || !storedHash) return false;
+
+  const { passwordHash } = await hashPassword(password, salt);
+  const storedBuffer = Buffer.from(String(storedHash), "hex");
+  const candidateBuffer = Buffer.from(passwordHash, "hex");
+
+  if (storedBuffer.length !== candidateBuffer.length) return false;
+
+  return crypto.timingSafeEqual(storedBuffer, candidateBuffer);
+};
+
+const serializeUser = (user) => ({
+  id: user.id,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  email: user.email,
+  condition: user.condition,
+  createdAt: user.createdAt,
+});
+
+const readUserByEmail = async (email) => {
+  const rows = await prisma.$queryRaw`
+    SELECT "id", "firstName", "lastName", "email", "passwordHash", "salt", "condition", "createdAt"
+    FROM "User"
+    WHERE "email" = ${normalizeEmail(email)}
+    LIMIT 1
+  `;
+
+  return rows[0] || null;
+};
+
+const isUniqueEmailError = (err) =>
+  String(err?.code || err?.meta?.code || "").includes("P2002") ||
+  String(err?.message || "").includes("User_email_key");
+
+const signupUser = async (req, res) => {
+  const firstName = String(req.body?.firstName || "").trim();
+  const lastName = String(req.body?.lastName || "").trim();
+  const email = normalizeEmail(req.body?.email);
+  const password = String(req.body?.password || "");
+  const condition = normalizeCondition(req.body?.condition);
+
+  if (!firstName || !lastName || !email || !password || !condition) {
+    return res.status(400).json({ message: "Please fill all fields!" });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ message: "Please enter a valid email address" });
+  }
+
+  if (!USER_CONDITIONS.has(condition)) {
+    return res.status(400).json({ message: "Please select a valid patient type" });
+  }
+
+  try {
+    const existingUser = await readUserByEmail(email);
+    if (existingUser) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+
+    const { passwordHash, salt } = await hashPassword(password);
+    const rows = await prisma.$queryRaw`
+      INSERT INTO "User" ("firstName", "lastName", "email", "passwordHash", "salt", "condition")
+      VALUES (${firstName}, ${lastName}, ${email}, ${passwordHash}, ${salt}, ${condition})
+      RETURNING "id", "firstName", "lastName", "email", "condition", "createdAt"
+    `;
+
+    return res.status(201).json({ user: serializeUser(rows[0]) });
+  } catch (err) {
+    if (isUniqueEmailError(err)) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+
+    return res.status(500).json({ message: err.message || "Signup failed" });
+  }
+};
+
+const loginUser = async (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  const password = String(req.body?.password || "");
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Please enter email and password!" });
+  }
+
+  try {
+    const user = await readUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const passwordMatches = await verifyPassword(password, user.salt, user.passwordHash);
+    if (!passwordMatches) {
+      return res.status(401).json({ message: "Invalid password" });
+    }
+
+    return res.json({ user: serializeUser(user) });
+  } catch (err) {
+    return res.status(500).json({ message: err.message || "Login failed" });
+  }
+};
+
+app.post(["/api/auth/signup", "/api/signup", "/signup"], signupUser);
+app.post(["/api/auth/login", "/api/login", "/login"], loginUser);
 
 const ELEVENLABS_VOICE_IDS = {
   male: process.env.ELEVENLABS_MALE_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb",
@@ -1643,4 +1800,14 @@ app.get(/.*/, (req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5551;
-app.listen(PORT, "0.0.0.0",() => console.log(`Project running on port ${PORT}`));
+const startServer = async () => {
+  try {
+    await ensureAuthTables();
+  } catch (err) {
+    console.error("Auth table setup failed:", err.message);
+  }
+
+  app.listen(PORT, "0.0.0.0", () => console.log(`Project running on port ${PORT}`));
+};
+
+startServer();

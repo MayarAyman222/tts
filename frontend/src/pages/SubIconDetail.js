@@ -8,6 +8,7 @@ import {
   speakWithBrowserVoice,
   speakWithElevenLabsVoice,
 } from "../api/api";
+import { trackRoutinePlayback } from "../utils/dailyRoutine";
 
 const DEFAULT_IMAGE = normalizeMediaUrl("/public/default.jpg");
 const VOICE_MODE_OPTIONS = [
@@ -76,6 +77,14 @@ function SubIconDetail() {
       if (!audioPlayed) {
         throw new Error("TTS failed");
       }
+
+      trackRoutinePlayback({
+        ...subIcon,
+        type: "subicon",
+        parentTitle: subIcon?.icon?.title || "",
+        parentCategory: subIcon?.icon?.category || "",
+        sourcePath: `/icons/${iconId}/subicons/${subIconId}`,
+      });
     } catch (error) {
       console.log("SubIcon audio error:", error);
       alert(error.message || "TTS failed");

@@ -26,20 +26,24 @@ function TimePeriodsPage() {
   }, [mainCategoryId]);
 
   return (
-    <Container className="mt-5">
-      <h2 className="mb-4 text-center">اختر الفترة</h2>
+    <Container className="app-page main-categories-page">
+      <div className="app-page-header">
+        <span className="app-kicker">Real Life Activities</span>
+        <h2>اختر الفترة</h2>
+      </div>
+
       <Row className="g-4">
         {Array.isArray(periods) &&
-          periods.map((period) => (
+          periods.map((period, index) => (
             <Col key={period.id} xs={6} sm={4} md={3} lg={2}>
               <Card
-                className="text-center shadow h-100"
+                className="category-card h-100"
                 onClick={() => navigate(`/timeperiods/${period.id}/icons`)}
-                style={{ cursor: "pointer", transition: "transform 0.2s" }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
               >
                 <Card.Body>
+                  <span className="category-card-mark">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
                   <Card.Title>{period.name}</Card.Title>
                 </Card.Body>
               </Card>

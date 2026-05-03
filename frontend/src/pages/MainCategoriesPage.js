@@ -14,6 +14,8 @@ function MainCategoriesPage() {
     normalizeCategoryName(cat?.name) === "expressyourfeelingsbydrawing";
   const isChatCategory = (cat) =>
     normalizeCategoryName(cat?.name) === "aacassistant" || cat?.route === "/chat";
+  const isDailyRoutineCategory = (cat) =>
+    normalizeCategoryName(cat?.name) === "dailyroutine" || cat?.route === "/daily-routine";
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/maincategories`)
@@ -34,6 +36,10 @@ function MainCategoriesPage() {
     }
     if (isChatCategory(cat)) {
       navigate("/chat");
+      return;
+    }
+    if (isDailyRoutineCategory(cat)) {
+      navigate("/daily-routine");
       return;
     }
     if (name === "Real Life Activities") {
@@ -66,48 +72,50 @@ function MainCategoriesPage() {
       route: "/chat",
     });
   }
+  if (!visibleCategories.some(isDailyRoutineCategory)) {
+    visibleCategories.push({
+      id: "daily-routine",
+      name: "Daily Routine",
+      route: "/daily-routine",
+    });
+  }
+
+  const getCategoryTitle = (cat) =>
+    isDrawingCategory(cat)
+      ? "Express Your Feelings By Drawing"
+      : isChatCategory(cat)
+        ? "AAC Assistant"
+        : isDailyRoutineCategory(cat)
+          ? "Daily Routine"
+          : cat.name;
 
   return (
-    <Container
-      className="d-flex flex-column justify-content-center align-items-center vh-100"
-      style={{ maxWidth: "1200px" }}
-    >
-      <h2 className="mb-5 text-center" style={{ fontWeight: "700", fontSize: "2.5rem" }}>
-        Main Categories
-      </h2>
+    <Container className="app-page main-categories-page">
+      <div className="app-page-header">
+        <span className="app-kicker">Voxi</span>
+        <h2>Main Categories</h2>
+      </div>
+
       <Row className="g-4 w-100 justify-content-center">
-        {visibleCategories.map((cat) => (
+        {visibleCategories.map((cat, index) => {
+          const title = getCategoryTitle(cat);
+
+          return (
             <Col key={cat.id} xs={12} sm={6} md={4} lg={3}>
               <Card
-                className="text-center shadow-lg h-100"
+                className="category-card h-100"
                 onClick={() => goCategory(cat)}
-                style={{
-                  cursor: "pointer",
-                  transition: "transform 0.3s, box-shadow 0.3s",
-                  borderRadius: "15px",
-                  padding: "1rem"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.05)";
-                  e.currentTarget.style.boxShadow = "0 10px 30px rgba(0,0,0,0.3)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1)";
-                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-                }}
               >
                 <Card.Body>
-                  <Card.Title style={{ fontSize: "1.5rem", fontWeight: "600" }}>
-                    {isDrawingCategory(cat)
-                      ? "Express Your Feelings By Drawing"
-                      : isChatCategory(cat)
-                        ? "AAC Assistant"
-                        : cat.name}
-                  </Card.Title>
+                  <span className="category-card-mark">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <Card.Title>{title}</Card.Title>
                 </Card.Body>
               </Card>
             </Col>
-          ))}
+          );
+        })}
       </Row>
     </Container>
   );

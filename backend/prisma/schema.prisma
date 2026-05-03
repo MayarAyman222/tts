@@ -24,6 +24,18 @@ model TimePeriod {
   @@unique([name, mainCategoryId])
 }
 
+model User {
+  id           Int      @id @default(autoincrement())
+  firstName    String
+  lastName     String
+  email        String   @unique
+  passwordHash String
+  salt         String
+  condition    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model Icon {
   id             Int          @id @default(autoincrement())
   title          String

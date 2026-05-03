@@ -7,6 +7,7 @@ import {
   speakWithBrowserVoice,
   speakWithElevenLabsVoice,
 } from "../api/api";
+import { trackRoutinePlayback } from "../utils/dailyRoutine";
 import "./SubSubIconDetail.css";
 
 const DEFAULT_IMAGE = normalizeMediaUrl("/public/default.jpg");
@@ -124,11 +125,22 @@ function SubSubIconDetail() {
     try {
       setSpeaking(true);
 
+      const markRoutineItem = () => {
+        trackRoutinePlayback({
+          ...subSubIcon,
+          type: "subsubicon",
+          parentTitle: parentSubIcon?.title || "",
+          parentCategory: parentIcon?.category || parentSubIcon?.category || "",
+          sourcePath: `/icons/${iconId}/subicons/${subIconId}/subsubicons/${subSubIconId}`,
+        });
+      };
+
       if (isElevenLabsVoiceMode(voiceMode)) {
         const audioPlayed = await speakWithElevenLabsVoice(speechText, voiceMode);
         if (!audioPlayed) {
           throw new Error("ElevenLabs TTS failed");
         }
+        markRoutineItem();
         return;
       }
 
@@ -137,10 +149,12 @@ function SubSubIconDetail() {
         if (!audioPlayed) {
           throw new Error("Browser speech is not available");
         }
+        markRoutineItem();
         return;
       }
 
       await playRecording();
+      markRoutineItem();
     } catch (error) {
       console.log("SubSubIcon detail audio error:", error);
       alert(error.message || "TTS failed");

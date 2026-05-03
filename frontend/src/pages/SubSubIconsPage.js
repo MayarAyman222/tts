@@ -7,6 +7,7 @@ import {
   speakWithBrowserVoice,
   speakWithElevenLabsVoice,
 } from "../api/api";
+import { trackRoutinePlayback } from "../utils/dailyRoutine";
 import "./SubSubIconsPage.css";
 
 const DEFAULT_IMAGE = normalizeMediaUrl("/public/default.jpg");
@@ -138,6 +139,18 @@ function SubSubIconsPage() {
         }
       });
 
+    const markSelectedRoutineItems = () => {
+      trackRoutinePlayback(
+        selectedSubSubIcons.map((item) => ({
+          ...item,
+          type: "subsubicon",
+          parentTitle: parentSubIcon?.title || "",
+          parentCategory: parentIcon?.category || parentSubIcon?.category || "",
+          sourcePath: `/icons/${iconId}/subicons/${subIconId}/subsubicons/${item.id}`,
+        })),
+      );
+    };
+
     setIsPlaying(true);
 
     try {
@@ -146,6 +159,7 @@ function SubSubIconsPage() {
         if (!audioPlayed) {
           throw new Error("ElevenLabs TTS failed");
         }
+        markSelectedRoutineItems();
         return;
       }
 
@@ -153,7 +167,9 @@ function SubSubIconsPage() {
         const audioPlayed = await speakWithBrowserVoice(generateSentence(), voiceMode);
         if (!audioPlayed) {
           alert("Speech is not available in this browser");
+          return;
         }
+        markSelectedRoutineItems();
         return;
       }
 
@@ -171,9 +187,14 @@ function SubSubIconsPage() {
         }
       });
 
+      if (!queue.length) {
+        throw new Error("No recording available for the selected items");
+      }
+
       for (const src of queue) {
         await playSource(src);
       }
+      markSelectedRoutineItems();
     } catch (error) {
       console.log("TTS playback error:", error);
       alert(error.message || "TTS failed");

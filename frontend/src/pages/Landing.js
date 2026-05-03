@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Navbar, Nav, Container, Button } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { AppContext } from "../context/AppContext";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { user, logout } = useContext(AppContext);
 
   // النصوص بالعربي فقط
   const t = {
@@ -107,6 +109,26 @@ const Landing = () => {
               {[{ text: t.home, id: "home" }, { text: t.features, id: "features" }, { text: t.how, id: "how" }, { text: t.users, id: "users" }, { text: t.about, id: "about" }].map((link, i) => (
                 <Nav.Link key={i} onClick={() => scrollTo(link.id)} className="btn btn-link fw-semibold p-0">{link.text}</Nav.Link>
               ))}
+              {user ? (
+                <>
+                  <span className="small fw-semibold text-muted">Welcome, {user.firstName}</span>
+                  <Button
+                    variant="outline-dark"
+                    size="sm"
+                    onClick={() => {
+                      logout();
+                      navigate("/login");
+                    }}
+                  >
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline-dark" size="sm" onClick={() => navigate("/login")}>Login</Button>
+                  <Button variant="dark" size="sm" onClick={() => navigate("/signup")}>Signup</Button>
+                </>
+              )}
               <Button variant="dark" size="sm" onClick={() => navigate("/main-categories")}>{t.startBtn}</Button>
             </Nav>
           </Navbar.Collapse>
@@ -125,7 +147,7 @@ const Landing = () => {
               </Button>
             </div>
             <div className="col-lg-6 text-center">
-              <img src="" alt="" className="img-fluid" style={{ maxHeight: "300px" }} />
+              <img src="/images/communication.jpg" alt="Voxi communication" className="img-fluid rounded" style={{ maxHeight: "300px", objectFit: "cover" }} />
             </div>
           </div>
         </Container>

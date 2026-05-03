@@ -7,10 +7,41 @@ const SpeechRecognition =
 const NO_SPEECH_GRACE_MS = 900;
 const ATTEMPTS_STORAGE_KEY = "training_attempts_v1";
 const PASSING_SCORE = 70;
-const FAILED_ATTEMPTS_LIMIT = 3;
+const NON_SCORABLE_RECOGNITION_ERRORS = new Set([
+  "network",
+  "service-not-allowed",
+  "not-allowed",
+  "audio-capture",
+  "aborted"
+]);
 
-const getFailureMessage = (attemptNumber) =>
-  attemptNumber >= FAILED_ATTEMPTS_LIMIT ? "Failed" : "Try again";
+const getScoreMessage = (value) =>
+  value >= PASSING_SCORE ? "تم" : "النسبة أقل من المطلوب، حاولي مرة أخرى";
+
+const getBrowserName = () => {
+  const userAgent = navigator.userAgent || "";
+  if (/Edg\//.test(userAgent)) return "Microsoft Edge";
+  if (/OPR\//.test(userAgent)) return "Opera";
+  if (/Brave\//.test(userAgent) || navigator.brave) return "Brave";
+  if (/Firefox\//.test(userAgent)) return "Firefox";
+  if (/Chrome\//.test(userAgent)) return "Google Chrome";
+  if (/Safari\//.test(userAgent)) return "Safari";
+  return "المتصفح الحالي";
+};
+
+const getNetworkRecognitionMessage = () => {
+  const browserName = getBrowserName();
+
+  if (navigator.onLine === false) {
+    return "الجهاز غير متصل بالإنترنت. التعرف على الصوت في Chrome يحتاج اتصال إنترنت.";
+  }
+
+  if (browserName !== "Google Chrome") {
+    return `أنت تستخدم ${browserName}. التعرف على الصوت في هذه الصفحة يعتمد على خدمة Google Chrome، فافتح localhost:3000/training من Google Chrome مع اتصال إنترنت واسمح بالميكروفون.`;
+  }
+
+  return "تعذر الاتصال بخدمة التعرف على الصوت في Google Chrome. تأكد من اتصال الإنترنت، وأوقف VPN أو Proxy إن وجد، واسمح بالميكروفون من إعدادات الموقع.";
+};
 
 const normalizeText = (text) => {
   if (!text) return "";
@@ -77,18 +108,39 @@ const getStoredAttemptsForWord = (word) => {
   if (!normalizedWord) return [];
 
   return readStoredAttempts()
-    .filter((attempt) => attempt.word === normalizedWord)
+    .filter(
+      (attempt) =>
+        attempt.word === normalizedWord && String(attempt.transcript || "").trim()
+    )
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+};
+
+const clearStoredAttemptsForWord = (word) => {
+  const normalizedWord = String(word || "").trim();
+  if (!normalizedWord) return;
+
+  const nextAttempts = readStoredAttempts().filter(
+    (attempt) => attempt.word !== normalizedWord
+  );
+
+  try {
+    window.localStorage.setItem(ATTEMPTS_STORAGE_KEY, JSON.stringify(nextAttempts));
+  } catch (err) {
+    console.log(err);
+  }
 };
 
 const saveAttemptForWord = (word, transcript, score) => {
   const normalizedWord = String(word || "").trim();
-  if (!normalizedWord) return [];
+  const normalizedTranscript = String(transcript || "").trim();
+  if (!normalizedWord || !normalizedTranscript) {
+    return getStoredAttemptsForWord(normalizedWord);
+  }
 
   const nextAttempt = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     word: normalizedWord,
-    transcript: String(transcript || ""),
+    transcript: normalizedTranscript,
     score: Number(score) || 0,
     createdAt: new Date().toISOString()
   };
@@ -101,9 +153,7 @@ const saveAttemptForWord = (word, transcript, score) => {
     console.log(err);
   }
 
-  return nextAttempts
-    .filter((attempt) => attempt.word === normalizedWord)
-    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  return getStoredAttemptsForWord(normalizedWord);
 };
 
 const LineChart = ({ data }) => {
@@ -132,6 +182,44 @@ const LineChart = ({ data }) => {
         return <circle key={idx} cx={cx} cy={cy} r="4" fill="#dc3545" />;
       })}
     </svg>
+  );
+};
+
+const AttemptsHistory = ({ attempts }) => {
+  if (!attempts.length) {
+    return <p className="text-muted mb-0">لا توجد نسب محفوظة بعد.</p>;
+  }
+
+  return (
+    <div className="table-responsive mt-3">
+      <table className="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>المحاولة</th>
+            <th>النص المسموع</th>
+            <th>النسبة</th>
+            <th>الوقت</th>
+          </tr>
+        </thead>
+        <tbody>
+          {attempts.map((attempt, index) => (
+            <tr key={attempt.id || `${attempt.createdAt}-${index}`}>
+              <td>{index + 1}</td>
+              <td>{attempt.transcript}</td>
+              <td>{attempt.score}%</td>
+              <td>
+                {attempt.createdAt
+                  ? new Date(attempt.createdAt).toLocaleTimeString("ar-EG", {
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })
+                  : "-"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
@@ -165,20 +253,12 @@ function TrainingPage() {
     setAttempts(getStoredAttemptsForWord(trimmed));
   };
 
-  const saveNoResultAttempt = () => {
-    const trimmed = String(targetWord || "").trim();
-    if (!trimmed) return;
-
-    const nextAttemptNumber = getStoredAttemptsForWord(trimmed).length + 1;
-    const updatedAttempts = saveAttemptForWord(trimmed, "", 0);
-    setTranscript("");
-    setScore(0);
-    setMessage(getFailureMessage(nextAttemptNumber));
-    setAttempts(updatedAttempts);
-  };
-
-  const shouldSaveNoResultAttempt = (elapsed) => {
+  const shouldShowNoResultMessage = (elapsed) => {
     if (gotResultRef.current || !targetWord.trim() || elapsed < NO_SPEECH_GRACE_MS) {
+      return false;
+    }
+
+    if (NON_SCORABLE_RECOGNITION_ERRORS.has(recognitionErrorReasonRef.current)) {
       return false;
     }
 
@@ -208,6 +288,10 @@ function TrainingPage() {
     }
     if (!targetWord.trim()) {
       setError("اكتب الكلمة أولا.");
+      return;
+    }
+    if (navigator.onLine === false) {
+      setError(getNetworkRecognitionMessage());
       return;
     }
 
@@ -255,20 +339,28 @@ function TrainingPage() {
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event) => {
-      const text = event.results?.[0]?.[0]?.transcript || "";
+      const text = String(event.results?.[0]?.[0]?.transcript || "").trim();
       gotResultRef.current = true;
+
+      if (!text) {
+        setTranscript("");
+        setScore(null);
+        setMessage("");
+        setError("المتصفح لم يحول الصوت إلى كلام واضح. جرّبي كلمة أو جملة أوضح.");
+        return;
+      }
+
       setTranscript(text);
+      setError("");
 
       const newScore = calcScore(targetWord, text);
       setScore(newScore);
+      setMessage(getScoreMessage(newScore));
 
-      if (newScore >= PASSING_SCORE) {
-        setMessage("تم");
-      } else {
-        setMessage(getFailureMessage(getStoredAttemptsForWord(targetWord).length + 1));
-      }
-
-      const lastScore = attempts.length ? attempts[attempts.length - 1].score : null;
+      const previousAttempts = getStoredAttemptsForWord(targetWord);
+      const lastScore = previousAttempts.length
+        ? previousAttempts[previousAttempts.length - 1].score
+        : null;
       if (lastScore !== null) {
         const delta = newScore - lastScore;
         if (delta > 0) {
@@ -289,6 +381,9 @@ function TrainingPage() {
       hadErrorRef.current = true;
       recognitionErrorReasonRef.current = reason;
       if (reason === "no-speech") {
+        setTranscript("");
+        setScore(null);
+        setMessage("");
         setError("لم يتم سماع صوت. اقترب من الميكروفون وتكلم بوضوح.");
       } else if (reason === "audio-capture") {
         setError("الميكروفون غير متاح أو مشغول.");
@@ -297,7 +392,10 @@ function TrainingPage() {
       } else if (reason === "aborted") {
         setError("تم إيقاف التعرف على الصوت.");
       } else if (reason === "network") {
-        setError("مشكلة في الشبكة أثناء التعرف على الصوت (Chrome يحتاج إنترنت).");
+        setTranscript("");
+        setScore(null);
+        setMessage("");
+        setError(getNetworkRecognitionMessage());
       } else if (reason === "service-not-allowed") {
         setError("خدمة التعرف على الصوت غير مسموح بها.");
       } else {
@@ -308,16 +406,15 @@ function TrainingPage() {
     recognition.onend = () => {
       setListening(false);
       const elapsed = Date.now() - startTimeRef.current;
-      if (shouldSaveNoResultAttempt(elapsed)) {
-        saveNoResultAttempt();
-      }
-      if (
-        !gotResultRef.current &&
-        !hadErrorRef.current &&
-        !userStopRef.current &&
-        elapsed >= NO_SPEECH_GRACE_MS
-      ) {
-        setError("لم يتم التقاط أي كلام. جرّب التحدث أقرب للميكروفون.");
+      if (shouldShowNoResultMessage(elapsed)) {
+        setTranscript("");
+        setScore(null);
+        setMessage("");
+        setError(
+          userStopRef.current
+            ? "تم إيقاف التسجيل قبل التقاط كلام واضح."
+            : "لم يتم التقاط أي كلام. جرّبي التحدث أقرب للميكروفون وبكلمة واضحة."
+        );
       }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
@@ -343,6 +440,14 @@ function TrainingPage() {
   const stopRecording = () => {
     userStopRef.current = true;
     if (recognitionRef.current) recognitionRef.current.stop();
+  };
+
+  const resetCurrentWordAttempts = () => {
+    clearStoredAttemptsForWord(targetWord);
+    setAttempts([]);
+    setScore(null);
+    setMessage("");
+    setImprovement(null);
   };
 
   return (
@@ -419,8 +524,20 @@ function TrainingPage() {
         <Col xs={12} md={6}>
           <Card className="shadow-sm h-100">
             <Card.Body>
-              <Card.Title>التقدم</Card.Title>
+              <div className="d-flex justify-content-between gap-2 align-items-center mb-2">
+                <Card.Title className="mb-0">التقدم</Card.Title>
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={resetCurrentWordAttempts}
+                  disabled={!targetWord.trim() || attempts.length === 0}
+                >
+                  مسح المحاولات
+                </Button>
+              </div>
               <LineChart data={attempts.map((a) => a.score)} />
+              <h6 className="mt-3">النسبة في كل محاولة</h6>
+              <AttemptsHistory attempts={attempts} />
             </Card.Body>
           </Card>
         </Col>
