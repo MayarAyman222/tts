@@ -143,7 +143,13 @@ const getBrowserVoiceSettings = (voiceMode) => {
   return { pitch: 1.08, rate: 0.9 };
 };
 
-export const speakWithBrowserVoice = async (text, voiceMode = "female") => {
+const clampNumber = (value, min, max, fallback) => {
+  const nextValue = Number(value);
+  if (!Number.isFinite(nextValue)) return fallback;
+  return Math.min(Math.max(nextValue, min), max);
+};
+
+export const speakWithBrowserVoice = async (text, voiceMode = "female", options = {}) => {
   const cleanText = String(text || "").trim();
   if (!cleanText || typeof window === "undefined") return false;
 
@@ -159,8 +165,8 @@ export const speakWithBrowserVoice = async (text, voiceMode = "female") => {
   utterance.lang = selectedVoice?.lang || "ar-SA";
   utterance.voice = selectedVoice;
   utterance.pitch = settings.pitch;
-  utterance.rate = settings.rate;
-  utterance.volume = 1;
+  utterance.rate = clampNumber(options.rate, 0.1, 10, settings.rate);
+  utterance.volume = clampNumber(options.volume, 0, 1, 1);
 
   return new Promise((resolve) => {
     let settled = false;
@@ -320,7 +326,7 @@ export const speakDrawingText = async (text, language) => {
   }
 };
 
-export const speakWithElevenLabsVoice = async (text, voiceMode = "ai-female") => {
+export const speakWithElevenLabsVoice = async (text, voiceMode = "ai-female", options = {}) => {
   const cleanText = String(text || "").trim();
   if (!cleanText) return false;
 
@@ -331,6 +337,8 @@ export const speakWithElevenLabsVoice = async (text, voiceMode = "ai-female") =>
 
   return new Promise((resolve, reject) => {
     const audio = new Audio(url);
+    audio.volume = clampNumber(options.volume, 0, 1, 1);
+    audio.playbackRate = clampNumber(options.rate, 0.25, 4, 1);
     let settled = false;
 
     const finish = (value) => {

@@ -1395,6 +1395,53 @@ const buffer = Buffer.from(await res.arrayBuffer());
 
 }
 
+const parseRecordId = (value) => {
+  const id = Number.parseInt(value, 10);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+const normalizeBodyText = (value) => String(value ?? "").trim();
+
+const isUniqueConstraintError = (err) =>
+  String(err?.code || err?.meta?.code || "").includes("P2002");
+
+const normalizeRetainedMediaUrl = (value) => {
+  const trimmed = normalizeBodyText(value);
+  if (!trimmed) return "";
+
+  if (/^\/?public\//i.test(trimmed)) {
+    return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  }
+
+  return trimmed;
+};
+
+const resolveMediaField = async ({
+  req,
+  fieldName,
+  linkFields = [],
+  currentValue = "",
+}) => {
+  const file = req.files?.[fieldName]?.[0];
+  if (file) {
+    return `/public/uploads/${file.filename}`;
+  }
+
+  const linkedValue = linkFields
+    .map((field) => normalizeBodyText(req.body?.[field]))
+    .find(Boolean);
+
+  if (!linkedValue) {
+    return currentValue || "";
+  }
+
+  if (/^https?:\/\//i.test(linkedValue)) {
+    return downloadFile(linkedValue);
+  }
+
+  return normalizeRetainedMediaUrl(linkedValue);
+};
+
 const subIconInclude = {
   subSubIcons: true,
 };
@@ -1605,6 +1652,101 @@ app.get("/icons/:iconId/subicons/:subIconId", async (req, res) => {
   }
 });
 
+app.put("/icons/:iconId/subicons/:subIconId", upload.fields([
+  { name: "image", maxCount: 1 },
+  { name: "audio", maxCount: 1 }
+]), async (req, res) => {
+  const iconId = parseRecordId(req.params.iconId);
+  const subIconId = parseRecordId(req.params.subIconId);
+
+  if (!iconId || !subIconId) {
+    return res.status(400).json({ message: "Invalid SubIcon id" });
+  }
+
+  try {
+    const existingSubIcon = await prisma.subIcon.findFirst({
+      where: { id: subIconId, iconId },
+      include: {
+        ...subIconInclude,
+        icon: true,
+      },
+    });
+
+    if (!existingSubIcon) {
+      return res.status(404).json({ message: "SubIcon not found" });
+    }
+
+    const title = normalizeBodyText(req.body?.title) || existingSubIcon.title;
+    const expression = normalizeBodyText(req.body?.expression) || existingSubIcon.expression;
+    const category =
+      normalizeBodyText(req.body?.category) ||
+      existingSubIcon.category ||
+      existingSubIcon.icon?.category ||
+      "";
+    const imageUrl = await resolveMediaField({
+      req,
+      fieldName: "image",
+      linkFields: ["imageUrl"],
+      currentValue: existingSubIcon.imageUrl,
+    });
+    const audioUrl = await resolveMediaField({
+      req,
+      fieldName: "audio",
+      linkFields: ["audioUrl", "recordingUrl"],
+      currentValue: existingSubIcon.audioUrl || "",
+    });
+
+    const updatedSubIcon = await prisma.subIcon.update({
+      where: { id: subIconId },
+      data: {
+        title,
+        expression,
+        category,
+        imageUrl,
+        audioUrl,
+      },
+      include: subIconInclude,
+    });
+
+    res.json(serializeSubIcon(updatedSubIcon));
+  } catch (err) {
+    if (isUniqueConstraintError(err)) {
+      return res.status(409).json({ message: "SubIcon title already exists for this icon" });
+    }
+
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.delete("/icons/:iconId/subicons/:subIconId", async (req, res) => {
+  const iconId = parseRecordId(req.params.iconId);
+  const subIconId = parseRecordId(req.params.subIconId);
+
+  if (!iconId || !subIconId) {
+    return res.status(400).json({ message: "Invalid SubIcon id" });
+  }
+
+  try {
+    const existingSubIcon = await prisma.subIcon.findFirst({
+      where: { id: subIconId, iconId },
+      select: { id: true },
+    });
+
+    if (!existingSubIcon) {
+      return res.status(404).json({ message: "SubIcon not found" });
+    }
+
+    await prisma.$transaction([
+      prisma.subSubIcon.deleteMany({ where: { subIconId } }),
+      prisma.subIcon.delete({ where: { id: subIconId } }),
+    ]);
+
+    res.json({ message: "SubIcon deleted", id: subIconId });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 app.post("/subicons/:subIconId/subsubicons", upload.fields([
   { name: "image", maxCount: 1 },
   { name: "audio", maxCount: 1 }
@@ -1704,6 +1846,115 @@ app.get("/icons/:iconId/subicons/:subIconId/subsubicons/:subSubIconId", async (r
           }
         : null,
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.put("/icons/:iconId/subicons/:subIconId/subsubicons/:subSubIconId", upload.fields([
+  { name: "image", maxCount: 1 },
+  { name: "audio", maxCount: 1 }
+]), async (req, res) => {
+  const iconId = parseRecordId(req.params.iconId);
+  const subIconId = parseRecordId(req.params.subIconId);
+  const subSubIconId = parseRecordId(req.params.subSubIconId);
+
+  if (!iconId || !subIconId || !subSubIconId) {
+    return res.status(400).json({ message: "Invalid SubSubIcon id" });
+  }
+
+  try {
+    const existingSubSubIcon = await prisma.subSubIcon.findFirst({
+      where: {
+        id: subSubIconId,
+        subIconId,
+        subIcon: {
+          iconId,
+        },
+      },
+      include: {
+        subIcon: true,
+      },
+    });
+
+    if (!existingSubSubIcon) {
+      return res.status(404).json({ message: "SubSubIcon not found" });
+    }
+
+    const title = normalizeBodyText(req.body?.title) || existingSubSubIcon.title;
+    const expression =
+      normalizeBodyText(req.body?.expression) || existingSubSubIcon.expression;
+    const category =
+      normalizeBodyText(req.body?.category) ||
+      existingSubSubIcon.category ||
+      existingSubSubIcon.subIcon?.category ||
+      "";
+    const imageUrl = await resolveMediaField({
+      req,
+      fieldName: "image",
+      linkFields: ["imageUrl"],
+      currentValue: existingSubSubIcon.imageUrl,
+    });
+    const audioUrl = await resolveMediaField({
+      req,
+      fieldName: "audio",
+      linkFields: ["audioUrl", "recordingUrl"],
+      currentValue: existingSubSubIcon.audioUrl || "",
+    });
+
+    const updatedSubSubIcon = await prisma.subSubIcon.update({
+      where: { id: subSubIconId },
+      data: {
+        title,
+        expression,
+        category,
+        imageUrl,
+        audioUrl,
+      },
+      include: {
+        subIcon: true,
+      },
+    });
+
+    res.json(serializeSubSubIcon(updatedSubSubIcon, updatedSubSubIcon.subIcon));
+  } catch (err) {
+    if (isUniqueConstraintError(err)) {
+      return res.status(409).json({
+        message: "SubSubIcon title already exists for this SubIcon",
+      });
+    }
+
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.delete("/icons/:iconId/subicons/:subIconId/subsubicons/:subSubIconId", async (req, res) => {
+  const iconId = parseRecordId(req.params.iconId);
+  const subIconId = parseRecordId(req.params.subIconId);
+  const subSubIconId = parseRecordId(req.params.subSubIconId);
+
+  if (!iconId || !subIconId || !subSubIconId) {
+    return res.status(400).json({ message: "Invalid SubSubIcon id" });
+  }
+
+  try {
+    const existingSubSubIcon = await prisma.subSubIcon.findFirst({
+      where: {
+        id: subSubIconId,
+        subIconId,
+        subIcon: {
+          iconId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!existingSubSubIcon) {
+      return res.status(404).json({ message: "SubSubIcon not found" });
+    }
+
+    await prisma.subSubIcon.delete({ where: { id: subSubIconId } });
+    res.json({ message: "SubSubIcon deleted", id: subSubIconId });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -58,6 +58,8 @@ const [selectedIds,setSelectedIds]=useState([]);
 const [timeOption,setTimeOption]=useState("الآن");
 const [connector,setConnector]=useState("و");
 const [voiceMode,setVoiceMode]=useState("human");
+const [volume,setVolume]=useState(1);
+const [speed,setSpeed]=useState(AUDIO_PLAYBACK_RATE);
 
 const [isPlaying,setIsPlaying]=useState(false);
 const audioRef=useRef(new Audio());
@@ -66,6 +68,7 @@ const preloadedAudioRef=useRef(new Map());
 /* ================= MODAL STATES ================= */
 
 const [showModal,setShowModal]=useState(false);
+const [editingSubIcon,setEditingSubIcon]=useState(null);
 
 const [title,setTitle]=useState("");
 const [expression,setExpression]=useState("");
@@ -292,7 +295,8 @@ const speakBrowserText = (text) =>
 
     const utterance = new Utterance(text);
     utterance.lang = "ar-EG";
-    utterance.rate = 0.95;
+    utterance.rate = speed;
+    utterance.volume = volume;
     utterance.onend = () => resolve(true);
     utterance.onerror = () => resolve(false);
 
@@ -314,7 +318,8 @@ const playAudioSource = (audioRef, src) =>
     audio.src = src;
     audio.currentTime = 0;
     audio.preload = "auto";
-    audio.playbackRate = AUDIO_PLAYBACK_RATE;
+    audio.volume = volume;
+    audio.playbackRate = speed;
 
     let settled = false;
     let timeoutId = null;
@@ -336,7 +341,7 @@ const playAudioSource = (audioRef, src) =>
     const setDurationTimeout = () => {
       clearTimeout(timeoutId);
       const durationMs = Number.isFinite(audio.duration)
-        ? (audio.duration * 1000) / AUDIO_PLAYBACK_RATE + 700
+        ? (audio.duration * 1000) / speed + 700
         : AUDIO_FALLBACK_TIMEOUT_MS;
       timeoutId = setTimeout(
         finish,
@@ -486,7 +491,10 @@ const playSelectedSounds = async () => {
 
   try {
     if (isElevenLabsVoiceMode(voiceMode)) {
-      const audioPlayed = await speakWithElevenLabsVoice(generateSentence(), voiceMode);
+      const audioPlayed = await speakWithElevenLabsVoice(generateSentence(), voiceMode, {
+        volume,
+        rate: speed,
+      });
       if (!audioPlayed) {
         throw new Error("ElevenLabs TTS failed");
       }
@@ -496,7 +504,10 @@ const playSelectedSounds = async () => {
 
     if (voiceMode !== "human") {
       const text = generateSentence();
-      const audioPlayed = await speakWithBrowserVoice(text, voiceMode);
+      const audioPlayed = await speakWithBrowserVoice(text, voiceMode, {
+        volume,
+        rate: speed,
+      });
       if (!audioPlayed) {
         await speakBrowserText(text);
       }
@@ -678,7 +689,79 @@ body:formData
 window.location.reload();
 
 };
-*/const submitSubIcon = async () => {
+*/
+const resetSubIconForm = () => {
+  setEditingSubIcon(null);
+  setTitle("");
+  setExpression("");
+  setCategory("");
+  setImageFile(null);
+  setImageUrl("");
+  setImagePreview(null);
+  setAudioFile(null);
+  setAudioUrl("");
+  setAudioPreview(null);
+  setRecordedFile(null);
+  setAudioMethod("url");
+  setImageMethod("upload");
+};
+
+const openAddModal = () => {
+  resetSubIconForm();
+  setShowModal(true);
+};
+
+const openEditModal = (subIcon) => {
+  setEditingSubIcon(subIcon);
+  setTitle(subIcon?.title || "");
+  setExpression(subIcon?.expression || "");
+  setCategory(subIcon?.category || mainIcon?.category || "");
+  setImageFile(null);
+  setImageUrl(subIcon?.imageUrl || "");
+  setImagePreview(normalizeMediaUrl(subIcon?.imageUrl || subIcon?.imgUrl) || null);
+  setImageMethod("url");
+  setAudioFile(null);
+  setAudioUrl(subIcon?.audioUrl || "");
+  setAudioPreview(normalizeMediaUrl(subIcon?.audioUrl || subIcon?.recordingUrl) || "");
+  setRecordedFile(null);
+  setAudioMethod("url");
+  setShowModal(true);
+};
+
+const closeSubIconModal = () => {
+  setShowModal(false);
+  resetSubIconForm();
+};
+
+const deleteSubIcon = async (subIcon) => {
+  const confirmed = window.confirm(`Delete "${subIcon.title}"?`);
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/icons/${iconId}/subicons/${subIcon.id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      throw new Error(await readResponseError(res));
+    }
+
+    setOrderedIcons(prev => {
+      const nextOrder = prev.filter(item => item.id !== subIcon.id);
+      localStorage.setItem(
+        `iconOrder_${iconId}`,
+        JSON.stringify(nextOrder.map(item => item.id)),
+      );
+      return nextOrder;
+    });
+    setSelectedIds(prev => prev.filter(id => id !== subIcon.id));
+  } catch (err) {
+    console.error(err);
+    alert(`Failed to delete SubIcon: ${err.message}`);
+  }
+};
+
+const submitSubIcon = async () => {
   const formData = new FormData();
 
   formData.append("title", title);
@@ -693,9 +776,11 @@ window.location.reload();
   if (audioMethod === "record" && recordedFile) formData.append("audio", recordedFile);
 
   try {
-    const requestUrl = `${BACKEND_URL}/icons/${iconId}/subicons`;
+    const requestUrl = editingSubIcon
+      ? `${BACKEND_URL}/icons/${iconId}/subicons/${editingSubIcon.id}`
+      : `${BACKEND_URL}/icons/${iconId}/subicons`;
     const res = await fetch(requestUrl, {
-      method: "POST",
+      method: editingSubIcon ? "PUT" : "POST",
       body: formData
     });
 
@@ -703,28 +788,20 @@ window.location.reload();
       throw new Error(await readResponseError(res));
     }
 
-    const newSubIcon = await res.json(); // backend يرجع object الجديد
+    const savedSubIcon = await res.json(); // backend يرجع object الجديد
 
-    // إضافة الـ SubIcon الجديد مباشرة للـ state
-    setOrderedIcons(prev => [...prev, newSubIcon]);
+    // إضافة أو تحديث الـ SubIcon مباشرة في الـ state
+    setOrderedIcons(prev => (
+      editingSubIcon
+        ? prev.map(item => item.id === savedSubIcon.id ? savedSubIcon : item)
+        : [...prev, savedSubIcon]
+    ));
 
-    // اغلاق الـ modal ومسح الـ form
-    setShowModal(false);
-    setTitle("");
-    setExpression("");
-    setCategory("");
-    setImageFile(null);
-    setImageUrl("");
-    setImagePreview(null);
-    setAudioUrl("");
-    setAudioPreview(null);
-    setRecordedFile(null);
-    setAudioMethod("url");
-    setImageMethod("upload");
+    closeSubIconModal();
 
   } catch (err) {
     console.error(err);
-    alert(`Failed to add SubIcon: ${err.message}\nAPI: ${BACKEND_URL || window.location.origin}`);
+    alert(`Failed to save SubIcon: ${err.message}\nAPI: ${BACKEND_URL || window.location.origin}`);
   }
 };
 if(!mainIcon) return <p className="text-center mt-5">جاري التحميل...</p>;
@@ -772,10 +849,36 @@ onClick={() => navigate(-1)}
 {isPlaying ? "جاري التشغيل..." : "تشغيل التسجيلات"}
 </button>
 
-<button type="button" className="subsub-action" onClick={()=>setShowModal(true)}>
+<button type="button" className="subsub-action" onClick={openAddModal}>
 Add SubIcon
 </button>
 
+</div>
+
+<div className="subsub-audio-controls">
+  <label className="subsub-slider">
+    <span>Volume {Math.round(volume * 100)}%</span>
+    <input
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      value={volume}
+      onChange={e=>setVolume(Number(e.target.value))}
+    />
+  </label>
+
+  <label className="subsub-slider">
+    <span>Speed {speed.toFixed(2)}x</span>
+    <input
+      type="range"
+      min="0.5"
+      max="2"
+      step="0.05"
+      value={speed}
+      onChange={e=>setSpeed(Number(e.target.value))}
+    />
+  </label>
 </div>
 
 {/* ================= SENTENCE ================= */}
@@ -838,6 +941,29 @@ onClick={()=>toggleSelect(sub.id)}
 {selected ? "✔" : "○"}
 </button>
 
+<div className="subsub-card-tools">
+  <button
+    type="button"
+    className="subsub-tool-button"
+    onClick={(event)=>{
+      event.stopPropagation();
+      openEditModal(sub);
+    }}
+  >
+    Edit
+  </button>
+  <button
+    type="button"
+    className="subsub-tool-button is-danger"
+    onClick={(event)=>{
+      event.stopPropagation();
+      deleteSubIcon(sub);
+    }}
+  >
+    Delete
+  </button>
+</div>
+
 <button
 type="button"
 className="subsub-card-body"
@@ -887,10 +1013,10 @@ navigate(`/icons/${iconId}/subicons/${sub.id}`);
 <p className="text-center mt-4">لا توجد عناصر فرعية.</p>
 )}
 
-<Modal show={showModal} onHide={()=>setShowModal(false)} size="lg">
+<Modal show={showModal} onHide={closeSubIconModal} size="lg">
 
 <Modal.Header closeButton>
-<Modal.Title>Add SubIcon</Modal.Title>
+<Modal.Title>{editingSubIcon ? "Edit SubIcon" : "Add SubIcon"}</Modal.Title>
 </Modal.Header>
 
 <Modal.Body>
@@ -929,7 +1055,7 @@ handleImageFile(e.target.files[0]);
 )}
 
 {imageMethod==="url" && (
-<Form.Control placeholder="Image URL" onChange={e=>{
+<Form.Control placeholder="Image URL" value={imageUrl} onChange={e=>{
 setImageUrl(e.target.value);
 setImagePreview(e.target.value);
 }}/>
@@ -995,6 +1121,7 @@ setImagePreview(e.target.value);
 {audioMethod==="url" && (
 <Form.Control
   placeholder="Audio URL"
+  value={audioUrl}
   onChange={e=>{
     setAudioUrl(e.target.value);
     setAudioPreview(e.target.value);
@@ -1047,12 +1174,12 @@ setImagePreview(e.target.value);
 
 <Modal.Footer>
 
-<Button variant="secondary" onClick={()=>setShowModal(false)}>
+<Button variant="secondary" onClick={closeSubIconModal}>
 Cancel
 </Button>
 
 <Button variant="primary" onClick={submitSubIcon}>
-Save
+{editingSubIcon ? "Update" : "Save"}
 </Button>
 
 </Modal.Footer>
