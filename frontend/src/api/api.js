@@ -6,8 +6,12 @@ const EXPLICIT_API_BASE_URL =
 const LOCAL_HOSTNAME_RE =
   /^(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/;
 
+const LOCAL_API_PORT = process.env.REACT_APP_BACKEND_PORT || "5551";
 const PUBLIC_API_BASE_URL = "https://tts-production-6e70.up.railway.app";
-const LEGACY_API_BASE_URLS = ["http://168.231.101.20:5551"];
+const LEGACY_API_BASE_URLS = [
+  "http://168.231.101.20:5551",
+  "https://tts-production-77b9.up.railway.app",
+];
 const ELEVENLABS_VOICE_MODE_MAP = {
   ai: "female",
   "ai-record": "female",
@@ -20,6 +24,19 @@ const ELEVENLABS_VOICE_MODE_MAP = {
 };
 
 const normalizeBaseUrl = (value) => String(value || "").replace(/\/+$/, "");
+
+const isLocalHostname = (hostname) =>
+  LOCAL_HOSTNAME_RE.test(String(hostname || "")) ||
+  hostname === "::1" ||
+  hostname === "[::1]";
+
+const normalizeLocalHostnameForUrl = (hostname) => {
+  if (!hostname || hostname === "0.0.0.0" || hostname === "::1" || hostname === "[::1]") {
+    return "localhost";
+  }
+
+  return hostname;
+};
 
 const getUrlHostname = (value) => {
   try {
@@ -46,8 +63,8 @@ const getExplicitApiBaseUrl = () => {
 
   if (
     EXPLICIT_API_BASE_URL &&
-    LOCAL_HOSTNAME_RE.test(explicitHostname) &&
-    !LOCAL_HOSTNAME_RE.test(hostname)
+    isLocalHostname(explicitHostname) &&
+    !isLocalHostname(hostname)
   ) {
     return "";
   }
@@ -55,7 +72,13 @@ const getExplicitApiBaseUrl = () => {
   return EXPLICIT_API_BASE_URL;
 };
 
-const getDefaultApiBaseUrl = () => PUBLIC_API_BASE_URL;
+const getDefaultApiBaseUrl = () => {
+  if (typeof window !== "undefined" && isLocalHostname(window.location.hostname)) {
+    return `http://${normalizeLocalHostnameForUrl(window.location.hostname)}:${LOCAL_API_PORT}`;
+  }
+
+  return PUBLIC_API_BASE_URL;
+};
 
 const rawApiBaseUrl = getExplicitApiBaseUrl() || getDefaultApiBaseUrl();
 
@@ -339,7 +362,7 @@ export const normalizeMediaUrl = (url) => {
     try {
       const parsedUrl = new URL(url);
       if (
-        LOCAL_HOSTNAME_RE.test(parsedUrl.hostname) ||
+        isLocalHostname(parsedUrl.hostname) ||
         LEGACY_API_BASE_URLS.some((baseUrl) => url.startsWith(baseUrl))
       ) {
         return `${API_BASE_URL}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;

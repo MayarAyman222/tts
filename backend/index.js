@@ -130,6 +130,42 @@ const getFallbackUploadPath = (filename) => {
   return fallbackMatches[0]?.path || "";
 };
 
+const getCaseInsensitivePublicPath = (requestPath) => {
+  const decodedPath = safeDecodePath(requestPath || "");
+  const parts = decodedPath.split(/[\\/]+/).filter(Boolean);
+
+  if (!parts.length) {
+    return "";
+  }
+
+  let currentPath = publicPath;
+
+  for (const part of parts) {
+    if (part === "." || part === ".." || !fs.existsSync(currentPath)) {
+      return "";
+    }
+
+    const match = fs
+      .readdirSync(currentPath, { withFileTypes: true })
+      .find((entry) => entry.name.toLowerCase() === part.toLowerCase());
+
+    if (!match) {
+      return "";
+    }
+
+    currentPath = path.join(currentPath, match.name);
+  }
+
+  const relativePath = path.relative(publicPath, currentPath);
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return "";
+  }
+
+  return fs.existsSync(currentPath) && fs.statSync(currentPath).isFile()
+    ? currentPath
+    : "";
+};
+
 // ===== إعداد Multer =====
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, "public/uploads")),
@@ -138,18 +174,40 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 //app.use(cors());
+const allowedOrigins = new Set([
+  "https://tts-eight-iota.vercel.app",
+  "https://tts-production-6e70.up.railway.app",
+  "https://tts-production-77b9.up.railway.app",
+]);
+
+const DEV_HOSTNAME_RE =
+  /^(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/;
+
+const isAllowedDevHostname = (hostname) =>
+  DEV_HOSTNAME_RE.test(String(hostname || "")) ||
+  hostname === "::1" ||
+  hostname === "[::1]";
+
+const isAllowedDevOrigin = (origin) => {
+  try {
+    const { protocol, hostname } = new URL(origin);
+    return protocol === "http:" && isAllowedDevHostname(hostname);
+  } catch (err) {
+    return false;
+  }
+};
+
 app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://0.0.0.0:3000",
-    "http://192.168.0.103:3000",
-    "http://192.168.56.1:3000",
-    "https://tts-eight-iota.vercel.app",
-    "https://tts-production-77b9.up.railway.app",
-  ], // المواقع المسموح لها
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.has(origin) || isAllowedDevOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked origin: ${origin}`));
+  },
   methods: ["GET","POST","PUT","DELETE"],
-  credentials: true 
+  credentials: true
 }));
 app.use(express.json({ limit: "10mb" }));
 app.use('/public', express.static(publicPath));
@@ -167,6 +225,18 @@ app.use("/public/uploads", (req, res, next) => {
 
   if (isImageFilename(requestedFilename) && fs.existsSync(defaultImagePath)) {
     return res.sendFile(defaultImagePath);
+  }
+
+  return next();
+});
+app.use("/public", (req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return next();
+  }
+
+  const fallbackPath = getCaseInsensitivePublicPath(req.path);
+  if (fallbackPath) {
+    return res.sendFile(fallbackPath);
   }
 
   return next();
@@ -374,6 +444,25 @@ const readApiError = async (response) => {
   } catch (err) {
     return errorText;
   }
+};
+
+const getElevenLabsErrorMessage = (status, details) => {
+  const detailStatus = details?.detail?.status;
+  const detailCode = details?.detail?.code;
+
+  if (status === 402 || detailCode === "paid_plan_required") {
+    return "Selected ElevenLabs voice requires a paid plan. Use a free or owned voice ID in ELEVENLABS_MALE_VOICE_ID / ELEVENLABS_FEMALE_VOICE_ID, or upgrade the ElevenLabs plan.";
+  }
+
+  if (status === 401 && detailStatus === "missing_permissions") {
+    return "ElevenLabs API key is missing the text_to_speech permission. Create or update an ElevenLabs key with Text to Speech access, then update ELEVENLABS_API_KEY and restart the backend.";
+  }
+
+  if (status === 401) {
+    return "ElevenLabs API key is invalid or unauthorized. Update ELEVENLABS_API_KEY, then restart the backend.";
+  }
+
+  return "ElevenLabs TTS failed";
 };
 
 const GOOGLE_TTS_LANGUAGE_ALIASES = {
@@ -672,9 +761,7 @@ app.post("/api/tts/speak", async (req, res) => {
 
     if (!elevenLabsRes.ok) {
       const details = await readApiError(elevenLabsRes);
-      const message = elevenLabsRes.status === 401
-        ? "ElevenLabs API key is invalid or unauthorized. Update ELEVENLABS_API_KEY in backend/.env, then restart the backend."
-        : "ElevenLabs TTS failed";
+      const message = getElevenLabsErrorMessage(elevenLabsRes.status, details);
 
       return res.status(elevenLabsRes.status).json({
         message,

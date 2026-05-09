@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/backend/(.*)",
-      "destination": "https://tts-production-77b9.up.railway.app/$1"
+      "destination": "https://tts-production-6e70.up.railway.app/$1"
     }
   ]
 }

@@ -29,6 +29,14 @@ const getBrowserName = () => {
   return "المتصفح الحالي";
 };
 
+const getCurrentAppUrl = (path = "") => {
+  if (typeof window === "undefined") {
+    return `http://localhost:5551${path}`;
+  }
+
+  return `${window.location.origin}${path}`;
+};
+
 const getNetworkRecognitionMessage = () => {
   const browserName = getBrowserName();
 
@@ -37,7 +45,7 @@ const getNetworkRecognitionMessage = () => {
   }
 
   if (browserName !== "Google Chrome") {
-    return `أنت تستخدم ${browserName}. التعرف على الصوت في هذه الصفحة يعتمد على خدمة Google Chrome، فافتح localhost:3000/training من Google Chrome مع اتصال إنترنت واسمح بالميكروفون.`;
+    return `أنت تستخدم ${browserName}. التعرف على الصوت في هذه الصفحة يعتمد على خدمة Google Chrome، فافتح ${getCurrentAppUrl("/training")} من Google Chrome مع اتصال إنترنت واسمح بالميكروفون.`;
   }
 
   return "تعذر الاتصال بخدمة التعرف على الصوت في Google Chrome. تأكد من اتصال الإنترنت، وأوقف VPN أو Proxy إن وجد، واسمح بالميكروفون من إعدادات الموقع.";
@@ -277,9 +285,9 @@ function TrainingPage() {
     setError("");
     const host = window.location.hostname;
     const allowInsecure =
-      host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+      host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
     if (!window.isSecureContext && !allowInsecure) {
-      setError("افتح التطبيق من https://tts-production-77b9.up.railway.app أو استخدم HTTPS.");
+      setError(`افتح التطبيق من ${getCurrentAppUrl()} أو استخدم HTTPS.`);
       return;
     }
     if (!SpeechRecognition) {

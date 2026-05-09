@@ -380,7 +380,7 @@ export const icons = [
   {
     title: "عمل",
     expression: "أريد العمل",
-    imageUrl: "/public/icons/Work.png",
+    imageUrl: "/public/icons/work.png",
     category: "Work",
     timePeriod: "Morning",
     mainCategory: "Real Life Activities"
@@ -430,7 +430,7 @@ export const educationSubIcons = [
   { title: "مؤسسة تعليمية", expression: "أريد الذهاب إلى مؤسسة تعليمية", imageUrl: "/public/education/institution.png", category: "Education" },
   { title: "مهمة تعليمية", expression: "أريد القيام بمهمة", imageUrl: "/public/education/task.png", category: "Education" },
   { title: "مواد تعليمية", expression: "أحتاج مواد تعليمية", imageUrl: "/public/education/material.png", category: "Education" },
-  { title: "معدات تعليمية", expression: "أحتاج معدات", imageUrl: "/public/education/equipment.png", category: "Education" },
+  { title: "معدات تعليمية", expression: "أحتاج معدات", imageUrl: "/public/education/projector.png", category: "Education" },
   { title: "مكان تعليمي", expression: "أريد الذهاب إلى مكان تعليمي", imageUrl: "/public/education/space.png", category: "Education" },
   { title: "منظمة تعليمية", expression: "هذه منظمة تعليمية", imageUrl: "/public/education/org.png", category: "Education" },
   { title: "منشأة تعليمية", expression: "هذه منشأة تعليمية", imageUrl: "/public/education/establishment.png", category: "Education" },
@@ -456,18 +456,18 @@ export const clothesSubIcons = [
 ];
 
 export const familySubIcons = [
-  { title: "أم", expression: "هذه أمي", imageUrl: "/public/Family/3.png", audioUrl: "/public/recordss/Mother.m4a", category: "Family" },
-  { title: "أب", expression: "هذا أبي", imageUrl: "/public/Family/4.png", audioUrl: "/public/recordss/Father.m4a", category: "Family" },
-  { title: "أخ", expression: "هذا أخي", imageUrl: "/public/Family/7.png", audioUrl: "/public/recordss/Brother.m4a", category: "Family" },
-  { title: "أخت", expression: "هذه أختي", imageUrl: "/public/Family/1.png", audioUrl: "/public/recordss/Sister.m4a", category: "Family" },
-  { title: "جد", expression: "هذا جدي", imageUrl: "/public/Family/2.png", category: "Family" },
-  { title: "جدة", expression: "هذه جدتي", imageUrl: "/public/Family/10.png", audioUrl: "/public/recordss/Auntt.m4a", category: "Family" },
-  { title: "عم", expression: "هذا عمي", imageUrl: "/public/Family/6.png", audioUrl: "/public/recordss/Uncle.m4a", category: "Family" },
-  { title: "عمة", expression: "هذه عمتي", imageUrl: "/public/Family/5.png", audioUrl: "/public/recordss/Aunt.m4a", category: "Family" },
-  { title: "ابن/بنت العم", expression: "هذا ابن عمي", imageUrl: "/public/Family/9.png", audioUrl: "/public/recordss/Cousin.m4a", category: "Family" },
-  { title: "طفل", expression: "هذا طفل", imageUrl: "/public/Family/8.png", category: "Family" },
-  { title: "خالي", expression: "هذا خالي", imageUrl: "/public/Family/9.png", audioUrl: "/public/recordss/Unclee.m4a", category: "Family" },
-  { title: "خالتي", expression: "هذه خالتي", imageUrl: "/public/Family/10.png", audioUrl: "/public/recordss/Auntt.m4a", category: "Family" }
+  { title: "أم", expression: "هذه أمي", imageUrl: "/public/Family/Mother.png", audioUrl: "/public/recordss/Mother.m4a", category: "Family" },
+  { title: "أب", expression: "هذا أبي", imageUrl: "/public/Family/father.png", audioUrl: "/public/recordss/Father.m4a", category: "Family" },
+  { title: "أخ", expression: "هذا أخي", imageUrl: "/public/Family/brother.png", audioUrl: "/public/recordss/Brother.m4a", category: "Family" },
+  { title: "أخت", expression: "هذه أختي", imageUrl: "/public/Family/sister.png", audioUrl: "/public/recordss/Sister.m4a", category: "Family" },
+  { title: "جد", expression: "هذا جدي", imageUrl: "/public/Family/grandfather.png", category: "Family" },
+  { title: "جدة", expression: "هذه جدتي", imageUrl: "/public/Family/grandmother.png", audioUrl: "/public/recordss/Auntt.m4a", category: "Family" },
+  { title: "عم", expression: "هذا عمي", imageUrl: "/public/Family/uncle.png", audioUrl: "/public/recordss/Uncle.m4a", category: "Family" },
+  { title: "عمة", expression: "هذه عمتي", imageUrl: "/public/Family/aunt.png", audioUrl: "/public/recordss/Aunt.m4a", category: "Family" },
+  { title: "ابن/بنت العم", expression: "هذا ابن عمي", imageUrl: "/public/Family/cousin.png", audioUrl: "/public/recordss/Cousin.m4a", category: "Family" },
+  { title: "طفل", expression: "هذا طفل", imageUrl: "/public/Family/baby.png", category: "Family" },
+  { title: "خالي", expression: "هذا خالي", imageUrl: "/public/Family/unclee.png", audioUrl: "/public/recordss/Unclee.m4a", category: "Family" },
+  { title: "خالتي", expression: "هذه خالتي", imageUrl: "/public/Family/aunte.png", audioUrl: "/public/recordss/Auntt.m4a", category: "Family" }
 ];
 
 export const feelingsSubIcons = [
@@ -548,7 +548,7 @@ export const drinkingSubIcons = [
 export const sleepingSubIcons = [
   { title: "٦ ساعات", expression: "أريد النوم ٦ ساعات", imageUrl: "/public/sleeping/6.png", category: "Sleeping" },
   { title: "٧ ساعات", expression: "أريد النوم ٧ ساعات", imageUrl: "/public/sleeping/7.png", category: "Sleeping" },
-  { title: "٨ ساعات", expression: "أريد النوم ٨ ساعات", imageUrl: "/public/Sleeping/8.png", category: "Sleeping" },
+  { title: "٨ ساعات", expression: "أريد النوم ٨ ساعات", imageUrl: "/public/sleeping/8.png", category: "Sleeping" },
   { title: "قيلولة فقط", expression: "أريد قيلولة فقط", imageUrl: "/public/sleeping/siesta.png", category: "Sleeping" },
   { title: "خذني إلى السرير", expression: "خذني إلى السرير", imageUrl: "/public/sleeping/bed.png", category: "Sleeping" },
   { title: "وسادة", expression: "أحتاج وسادة", imageUrl: "/public/sleeping/pillow.png", category: "Sleeping" },
@@ -635,7 +635,7 @@ export const afraidSubIcons = [
 ];
 
 export const callSubIcons = [
-  { title: "موبايل", expression: "أريد استخدام الموبايل", imageUrl: "/public/call/moble.png", category: "Call" },
+  { title: "موبايل", expression: "أريد استخدام الموبايل", imageUrl: "/public/call/mobile.png", category: "Call" },
   { title: "سماعة رأس", expression: "أريد سماعة رأس", imageUrl: "/public/call/Headset.png", category: "Call" },
   { title: "لوحة الاتصال", expression: "أريد لوحة الاتصال", imageUrl: "/public/call/DialPad.png", category: "Call" },
   { title: "مكالمة فيديو", expression: "أريد مكالمة فيديو", imageUrl: "/public/call/Videocall.png", category: "Call" },
@@ -751,7 +751,7 @@ export const lunchSubIcons = [
   { title: "شوربة", expression: "أريد شوربة", imageUrl: "/public/lunch/soup.png", category: "Lunch" },
   { title: "خبز", expression: "أريد خبزاً", imageUrl: "/public/lunch/bread.png", category: "Lunch" },
   { title: "عصير", expression: "أريد عصيراً", imageUrl: "/public/lunch/juice.png", category: "Lunch" },
-  { title: "تحلية", expression: "أريد تحلية", imageUrl: "/public/lunch/dessert.png", category: "Lunch" }
+  { title: "تحلية", expression: "أريد تحلية", imageUrl: "/public/snack/cookies.png", category: "Lunch" }
 ];
 
 export const dinnerSubIcons = [
@@ -764,7 +764,7 @@ export const dinnerSubIcons = [
   { title: "شوربة", expression: "أريد شوربة", imageUrl: "/public/dinner/soup.png", category: "Dinner" },
   { title: "خبز", expression: "أريد خبزاً", imageUrl: "/public/dinner/bread.png", category: "Dinner" },
   { title: "عصير", expression: "أريد عصيراً", imageUrl: "/public/dinner/juice.png", category: "Dinner" },
-  { title: "تحلية", expression: "أريد تحلية", imageUrl: "/public/dinner/dessert.png", category: "Dinner" }
+  { title: "تحلية", expression: "أريد تحلية", imageUrl: "/public/snack/cookies.png", category: "Dinner" }
 ];
 
 export const snackSubIcons = [
@@ -825,7 +825,7 @@ export const questionsSubIcons = [
   { title: "من", expression: "من هذا الشخص؟", imageUrl: "/public/Questions/who.png", audioUrl: "/public/recordss/Who.m4a", category: "Questions" },
   { title: "أي واحد", expression: "أي واحد تختار؟", imageUrl: "/public/Questions/whichone.png", audioUrl: "/public/recordss/Which.m4a", category: "Questions" },
   { title: "كم", expression: "كم العدد؟", imageUrl: "/public/Questions/money.png", audioUrl: "/public/recordss/Kam.m4a", category: "Questions" },
-  { title: "علامة استفهام", expression: "لدي سؤال", imageUrl: "/public/Questions/?.png", category: "Questions" },
+  { title: "علامة استفهام", expression: "لدي سؤال", imageUrl: "/public/Questions/whichone.png", category: "Questions" },
   { title: "وقت", expression: "ما الوقت الآن؟", imageUrl: "/public/Questions/time.png", audioUrl: "/public/recordss/Whattime.m4a", category: "Questions" }
 ];
 
