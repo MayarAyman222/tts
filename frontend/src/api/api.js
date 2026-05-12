@@ -353,30 +353,6 @@ export const recognizeDrawing = async ({ imageDataUrl, language }) => {
   return data;
 };
 
-export const generateTtsAudioUrl = async ({ text, voice, language }) => {
-  const res = await fetch(`${API_BASE_URL}/api/tts/speak`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, voice, language })
-  });
-
-  if (!res.ok) {
-    let message = "TTS failed";
-    const errorText = await res.text();
-    try {
-      const data = JSON.parse(errorText);
-      message = data?.message || data?.details || message;
-    } catch (err) {
-      message = errorText || message;
-    }
-
-    throw new Error(message);
-  }
-
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
-};
-
 export const generateGoogleTtsAudioUrl = async ({ text, language }) => {
   const res = await fetch(`${API_BASE_URL}/api/tts/gtts`, {
     method: "POST",
@@ -401,10 +377,95 @@ export const generateGoogleTtsAudioUrl = async ({ text, language }) => {
   return URL.createObjectURL(blob);
 };
 
+const getTtsErrorMessage = (data, fallbackMessage = "TTS failed") => {
+  const detail = data?.details?.detail || data?.detail || {};
+  const detailStatus = detail?.status || data?.details?.status;
+  const detailMessage = detail?.message || data?.details?.message;
+  const baseMessage =
+    data?.message ||
+    (typeof data?.details === "string" ? data.details : "") ||
+    fallbackMessage;
+
+  return [
+    baseMessage,
+    detailStatus ? `ElevenLabs status: ${detailStatus}` : "",
+    detailMessage ? `ElevenLabs message: ${detailMessage}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+};
+
+const notifyTtsFallback = (message, onFallback) => {
+  const fallbackMessage = `${message}\n\nUsing Google TTS fallback now.`;
+
+  if (typeof onFallback === "function") {
+    onFallback(fallbackMessage);
+    return;
+  }
+
+  if (typeof window !== "undefined" && typeof window.alert === "function") {
+    window.alert(fallbackMessage);
+  }
+};
+
+export const generateTtsAudioUrl = async ({
+  text,
+  voice,
+  language,
+  fallbackToGoogle = true,
+  onFallback,
+} = {}) => {
+  const res = await fetch(`${API_BASE_URL}/api/tts/speak`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voice, language })
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    let data = {};
+
+    try {
+      data = errorText ? JSON.parse(errorText) : {};
+    } catch (err) {
+      data = { message: errorText };
+    }
+
+    const message = getTtsErrorMessage(data);
+
+    if (fallbackToGoogle) {
+      notifyTtsFallback(message, onFallback);
+      try {
+        return await generateGoogleTtsAudioUrl({
+          text,
+          language: language || voice,
+        });
+      } catch (fallbackError) {
+        throw new Error(
+          `${message}\n\nGoogle TTS fallback failed: ${fallbackError.message}`,
+        );
+      }
+    }
+
+    throw new Error(message);
+  }
+
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+};
+
 export const speakText = async (text, voice = "male", language) => {
   try {
-    const url = await generateTtsAudioUrl({ text, voice, language });
-    return { ok: true, url };
+    let fallbackMessage = "";
+    const url = await generateTtsAudioUrl({
+      text,
+      voice,
+      language,
+      onFallback: (message) => {
+        fallbackMessage = message;
+      },
+    });
+    return { ok: true, url, fallbackMessage };
   } catch (error) {
     return { ok: false, message: error.message };
   }
@@ -430,6 +491,8 @@ export const speakWithElevenLabsVoice = async (text, voiceMode = "ai-female", op
   const url = await generateTtsAudioUrl({
     text: cleanText,
     voice: resolveElevenLabsVoiceMode(voiceMode),
+    language: options.language || voiceMode,
+    onFallback: options.onFallback,
   });
 
   return new Promise((resolve, reject) => {

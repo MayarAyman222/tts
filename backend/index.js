@@ -601,9 +601,6 @@ const getElevenLabsErrorMessage = (status, details) => {
   return "ElevenLabs TTS failed";
 };
 
-const isElevenLabsFreeTierBlocked = (details) =>
-  details?.detail?.status === "detected_unusual_activity";
-
 const GOOGLE_TTS_LANGUAGE_ALIASES = {
   ar: "ar",
   "ar-eg": "ar",
@@ -901,27 +898,6 @@ app.post("/api/tts/speak", async (req, res) => {
     if (!elevenLabsRes.ok) {
       const details = await readApiError(elevenLabsRes);
       const message = getElevenLabsErrorMessage(elevenLabsRes.status, details);
-
-      if (isElevenLabsFreeTierBlocked(details)) {
-        try {
-          const fallbackLang = resolveGoogleTtsLanguage(req.body?.language, req.body?.voice);
-          const audioBuffer = await getGoogleTtsAudioBuffer(text, fallbackLang);
-
-          res.setHeader("Content-Type", "audio/mpeg");
-          res.setHeader("Cache-Control", "no-store");
-          res.setHeader("X-TTS-Provider", "google-tts-fallback");
-          return res.send(audioBuffer);
-        } catch (fallbackErr) {
-          return res.status(elevenLabsRes.status).json({
-            message,
-            details,
-            fallback: {
-              message: "Google TTS fallback failed",
-              details: fallbackErr.message,
-            },
-          });
-        }
-      }
 
       return res.status(elevenLabsRes.status).json({
         message,
