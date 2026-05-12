@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { normalizeMediaUrl, API_BASE_URL } from "../api/api";
+import { normalizeMediaUrl, API_BASE_URL, fetchJson } from "../api/api";
 import "./SubSubIconsPage.css";
 
 const DEFAULT_IMAGE = normalizeMediaUrl("/public/default.jpg");
@@ -15,13 +15,7 @@ function IconsPage() {
       ? `${API_BASE_URL}/timeperiods/${timePeriodId}/icons`
       : `${API_BASE_URL}/maincategories/${mainCategoryId}/icons`;
 
-    fetch(url, { cache: "no-store" })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to load icons: ${res.status}`);
-        }
-        return res.json();
-      })
+    fetchJson(url, { cache: "no-store" })
       .then((data) => setIcons(Array.isArray(data) ? data : []))
       .catch((err) => {
         console.log(err);

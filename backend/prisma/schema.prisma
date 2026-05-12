@@ -6,11 +6,12 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 model MainCategory {
-  id           Int           @id @default(autoincrement())
-  name         String        @unique
-  icons        Icon[]
-  timePeriods  TimePeriod[]
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  icons       Icon[]
+  timePeriods TimePeriod[]
 }
 
 model TimePeriod {
@@ -25,15 +26,17 @@ model TimePeriod {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  firstName    String
-  lastName     String
-  email        String   @unique
-  passwordHash String
-  salt         String
-  condition    String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  Int          @id @default(autoincrement())
+  firstName           String
+  lastName            String
+  email               String       @unique
+  passwordHash        String
+  salt                String
+  condition           String
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  sentAacMessages     AacMessage[] @relation("AacMessageSender")
+  receivedAacMessages AacMessage[] @relation("AacMessageReceiver")
 }
 
 model Icon {
@@ -53,30 +56,48 @@ model Icon {
 }
 
 model EmergencyNumber {
-  id     Int    @id @default(autoincrement())
-  number String @unique
+  id     Int     @id @default(autoincrement())
+  number String  @unique
   label  String?
 }
 
-model SpeechAttempt {
+model AacMessage {
   id          Int      @id @default(autoincrement())
-  word        String
-  transcript  String
-  score       Int
+  senderName  String
+  message     String
+  source      String   @default("aac")
+  senderPhone String?
+  externalId  String?
+  senderId    Int?
+  receiverId  Int?
+  sender      User?    @relation("AacMessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+  receiver    User?    @relation("AacMessageReceiver", fields: [receiverId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([receiverId, createdAt])
+  @@index([senderId, createdAt])
+}
+
+model SpeechAttempt {
+  id         Int      @id @default(autoincrement())
+  word       String
+  transcript String
+  score      Int
+  createdAt  DateTime @default(now())
 
   @@index([word])
 }
 
 model SubIcon {
-  id         Int     @id @default(autoincrement())
-  title      String
-  expression String
-  imageUrl   String
-  category   String
-  audioUrl   String?  
-  iconId     Int
-  icon       Icon    @relation(fields: [iconId], references: [id])
+  id          Int          @id @default(autoincrement())
+  title       String
+  expression  String
+  imageUrl    String
+  category    String
+  audioUrl    String?
+  iconId      Int
+  icon        Icon         @relation(fields: [iconId], references: [id])
   subSubIcons SubSubIcon[]
 
   @@unique([title, iconId])

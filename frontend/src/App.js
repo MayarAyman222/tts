@@ -18,6 +18,7 @@ import TrainingPage from "./pages/TrainingPage";
 import DailyRoutinePage from "./pages/DailyRoutinePage";
 import ExpressDrawingPage from "./pages/ExpressDrawingPage";
 import Chat from "./pages/Chat";
+import Message from "./pages/Message";
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
           <Route path="/icons/:mainCategoryId" element={<IconsPage />} />
 
           <Route path="/emergency" element={<EmergencyPage />} />
+          <Route path="/message" element={<Message />} />
           <Route path="/training" element={<TrainingPage />} />
           <Route path="/daily-routine" element={<DailyRoutinePage />} />
           <Route path="/express-drawing" element={<ExpressDrawingPage />} />

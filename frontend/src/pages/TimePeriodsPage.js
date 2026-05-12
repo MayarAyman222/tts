@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card, Container, Row, Col } from "react-bootstrap";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_BASE_URL } from "../api/api";
+import { API_BASE_URL, fetchJson } from "../api/api";
 
 function TimePeriodsPage() {
   const { mainCategoryId } = useParams();
@@ -9,15 +9,9 @@ function TimePeriodsPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/maincategories/${mainCategoryId}/timeperiods`, {
+    fetchJson(`${API_BASE_URL}/maincategories/${mainCategoryId}/timeperiods`, {
       cache: "no-store"
     })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to load time periods: ${res.status}`);
-        }
-        return res.json();
-      })
       .then((data) => setPeriods(Array.isArray(data) ? data : []))
       .catch((err) => {
         console.log(err);

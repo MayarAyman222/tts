@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   API_BASE_URL,
+  fetchJson,
   isElevenLabsVoiceMode,
   normalizeMediaUrl,
   speakWithBrowserVoice,
@@ -39,16 +40,10 @@ function SubSubIconDetail() {
     const fetchSubSubIcon = async () => {
       try {
         setLoading(true);
-        const res = await fetch(
+        const data = await fetchJson(
           `${API_BASE_URL}/icons/${iconId}/subicons/${subIconId}/subsubicons/${subSubIconId}`,
           { cache: "no-store" },
         );
-
-        if (!res.ok) {
-          throw new Error(`Failed to load sub-sub-icon: ${res.status}`);
-        }
-
-        const data = await res.json();
         setSubSubIcon(data);
         setParentSubIcon(data?.subIcon || location.state?.parentSubIcon || null);
         setParentIcon(

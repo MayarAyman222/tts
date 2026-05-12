@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button, Form, Modal } from "react-bootstrap";
 import {
   API_BASE_URL,
+  fetchJson,
   isElevenLabsVoiceMode,
   normalizeMediaUrl,
   speakWithBrowserVoice,
@@ -60,14 +61,9 @@ function SubSubIconsPage() {
     const fetchSubIcon = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE_URL}/icons/${iconId}/subicons/${subIconId}`, {
+        const data = await fetchJson(`${API_BASE_URL}/icons/${iconId}/subicons/${subIconId}`, {
           cache: "no-store",
         });
-        if (!res.ok) {
-          throw new Error(`Failed to load sub icon: ${res.status}`);
-        }
-
-        const data = await res.json();
         setParentSubIcon(data);
         setParentIcon(data?.icon || location.state?.parentIcon || null);
       } catch (error) {

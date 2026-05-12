@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Button, Col, Container, Form, Row } from "react-bootstrap";
 import {
   API_BASE_URL,
+  fetchJson,
   isElevenLabsVoiceMode,
   normalizeMediaUrl,
   speakWithBrowserVoice,
@@ -28,8 +29,7 @@ function SubIconDetail() {
   useEffect(() => {
     const fetchSubIcon = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/icons/${iconId}/subicons/${subIconId}`);
-        const data = await res.json();
+        const data = await fetchJson(`${API_BASE_URL}/icons/${iconId}/subicons/${subIconId}`);
         setSubIcon(data);
       } catch (err) {
         console.log(err);

@@ -6,6 +6,7 @@ import "./SubIconsPage.css";
 import "./SubSubIconsPage.css";
 import {
   API_BASE_URL,
+  fetchJson,
   isElevenLabsVoiceMode,
   normalizeMediaUrl,
   speakWithBrowserVoice,
@@ -114,8 +115,7 @@ const fetchData=async()=>{
 
 try{
 
-const res=await fetch(`${BACKEND_URL}/icons/${iconId}`);
-const data=await res.json();
+const data=await fetchJson(`${BACKEND_URL}/icons/${iconId}`);
 
 setMainIcon(data);
 

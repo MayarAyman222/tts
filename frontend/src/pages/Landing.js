@@ -1,13 +1,30 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Navbar, Nav, Container, Button } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { AppContext } from "../context/AppContext";
+import {
+  API_BASE_URL,
+  getOfflineCacheMeta,
+  normalizeMediaUrl,
+  syncOfflineCache,
+} from "../api/api";
 
 const Landing = () => {
   const navigate = useNavigate();
-  const { user, logout } = useContext(AppContext);
+  const {
+    user,
+    logout,
+    offlineMode,
+    isOfflineActive,
+    isConnectionOffline,
+    setOfflineMode,
+  } = useContext(AppContext);
+  const [syncingOffline, setSyncingOffline] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(null);
+  const [syncError, setSyncError] = useState("");
+  const [cacheMeta, setCacheMeta] = useState(getOfflineCacheMeta);
 
   // النصوص بالعربي فقط
   const t = {
@@ -90,9 +107,47 @@ const Landing = () => {
     footer: "© 2025 فوكسى — التواصل للجميع",
   };
 
-    const scrollTo = (id) => {
+  const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const startOnlineMode = () => {
+    setOfflineMode(false);
+    navigate("/main-categories");
+  };
+
+  const startOfflineMode = async () => {
+    setOfflineMode(true);
+    setSyncError("");
+
+    if (!isConnectionOffline) {
+      setSyncingOffline(true);
+      setSyncProgress(null);
+
+      try {
+        const meta = await syncOfflineCache({
+          apiBaseUrl: API_BASE_URL,
+          normalizeMediaUrl,
+          onProgress: setSyncProgress,
+        });
+        setCacheMeta(meta);
+      } catch (err) {
+        setSyncError(err.message || "Offline cache sync failed");
+      } finally {
+        setSyncingOffline(false);
+      }
+    }
+
+    navigate("/main-categories");
+  };
+
+  const offlineStatusText = isConnectionOffline
+    ? "No internet: offline mode is active"
+    : offlineMode
+      ? "Offline mode is active"
+      : cacheMeta?.syncedAt
+        ? `Offline cache ready: ${new Date(cacheMeta.syncedAt).toLocaleString()}`
+        : "Offline cache will be prepared when you start offline mode";
 
   return (
     <div style={{ fontFamily: "Poppins, sans-serif", paddingTop: "100px" }}>
@@ -129,7 +184,15 @@ const Landing = () => {
                   <Button variant="dark" size="sm" onClick={() => navigate("/signup")}>Signup</Button>
                 </>
               )}
-              <Button variant="dark" size="sm" onClick={() => navigate("/main-categories")}>{t.startBtn}</Button>
+              <Button variant="dark" size="sm" onClick={startOnlineMode}>{t.startBtn}</Button>
+              <Button
+                variant={isOfflineActive ? "warning" : "outline-dark"}
+                size="sm"
+                onClick={startOfflineMode}
+                disabled={syncingOffline}
+              >
+                {syncingOffline ? "Caching..." : "Offline Mode"}
+              </Button>
             </Nav>
           </Navbar.Collapse>
         </Container>
@@ -142,9 +205,33 @@ const Landing = () => {
             <div className="col-lg-6 text-center text-lg-start mb-4 mb-lg-0">
               <h1 style={{ fontSize: "2.8rem", fontWeight: "800" }}>{t.heroTitle}</h1>
               <p className="mt-3" style={{ fontSize: "1.1rem", lineHeight: "1.7" }}>{t.heroDesc}</p>
-              <Button variant="dark" className="mt-4 px-4 py-2 fw-bold" style={{ borderRadius: "12px", fontSize: "1.1rem" }} onClick={() => navigate("/main-categories")}>
-                {t.startBtn}
-              </Button>
+              <div className="d-flex flex-wrap gap-2 justify-content-center justify-content-lg-start mt-4">
+                <Button variant="dark" className="px-4 py-2 fw-bold" style={{ borderRadius: "12px", fontSize: "1.1rem" }} onClick={startOnlineMode}>
+                  {t.startBtn}
+                </Button>
+                <Button
+                  variant={isOfflineActive ? "warning" : "outline-dark"}
+                  className="px-4 py-2 fw-bold"
+                  style={{ borderRadius: "12px", fontSize: "1.1rem" }}
+                  onClick={startOfflineMode}
+                  disabled={syncingOffline}
+                >
+                  {syncingOffline ? "Caching offline data..." : "Offline Mode"}
+                </Button>
+              </div>
+              <p className="mt-3 mb-1 text-muted" style={{ fontSize: "0.9rem" }}>
+                {offlineStatusText}
+              </p>
+              {syncProgress?.total ? (
+                <p className="mb-1 text-muted" style={{ fontSize: "0.85rem" }}>
+                  Cached {syncProgress.completed}/{syncProgress.total} media files
+                </p>
+              ) : null}
+              {syncError ? (
+                <p className="mb-0 text-danger" style={{ fontSize: "0.85rem" }}>
+                  {syncError}
+                </p>
+              ) : null}
             </div>
             <div className="col-lg-6 text-center">
               <img src="/images/communication.jpg" alt="Voxi communication" className="img-fluid rounded" style={{ maxHeight: "300px", objectFit: "cover" }} />

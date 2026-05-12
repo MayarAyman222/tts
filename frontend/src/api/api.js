@@ -1,3 +1,14 @@
+import {
+  cachedFetch,
+  fetchJson,
+  getOfflineCacheMeta,
+  getOfflineModePreference,
+  isOfflineRuntime,
+  registerOfflineWorker,
+  setOfflineModePreference,
+  syncOfflineCache,
+} from "./offline";
+
 const EXPLICIT_API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL ||
   process.env.REACT_APP_API_URL ||
@@ -83,6 +94,17 @@ const getDefaultApiBaseUrl = () => {
 const rawApiBaseUrl = getExplicitApiBaseUrl() || getDefaultApiBaseUrl();
 
 export const API_BASE_URL = normalizeBaseUrl(rawApiBaseUrl);
+
+export {
+  cachedFetch,
+  fetchJson,
+  getOfflineCacheMeta,
+  getOfflineModePreference,
+  isOfflineRuntime,
+  registerOfflineWorker,
+  setOfflineModePreference,
+  syncOfflineCache,
+};
 
 const getBrowserSpeechVoices = () =>
   new Promise((resolve) => {
@@ -208,6 +230,67 @@ export const translateText = async (text, targetLang) => {
   return await res.json();
 };
 
+const readJsonResponse = async (res, fallbackMessage) => {
+  const text = await res.text();
+  let data = {};
+
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (err) {
+    data = { message: text };
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.message || fallbackMessage);
+  }
+
+  return data;
+};
+
+export const getUsers = async ({ excludeUserId } = {}) => {
+  const params = new URLSearchParams();
+  if (excludeUserId) params.set("excludeUserId", String(excludeUserId));
+
+  const query = params.toString();
+  const res = await cachedFetch(`${API_BASE_URL}/api/users${query ? `?${query}` : ""}`, {
+    cache: "no-store"
+  });
+
+  return readJsonResponse(res, "Failed to load users");
+};
+
+export const getAacMessages = async ({ limit = 20, receiverId, senderId } = {}) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (receiverId) params.set("receiverId", String(receiverId));
+  if (senderId) params.set("senderId", String(senderId));
+
+  const res = await cachedFetch(`${API_BASE_URL}/aac-messages?${params.toString()}`, {
+    cache: "no-store"
+  });
+
+  return readJsonResponse(res, "Failed to load AAC messages");
+};
+
+export const createAacMessage = async ({ senderName, message, senderId, receiverId }) => {
+  const res = await fetch(`${API_BASE_URL}/aac-messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ senderName, message, senderId, receiverId })
+  });
+
+  return readJsonResponse(res, "Failed to send AAC message");
+};
+
+export const sendWhatsappMessage = async ({ to, message }) => {
+  const res = await fetch(`${API_BASE_URL}/api/whatsapp/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ to, message })
+  });
+
+  return readJsonResponse(res, "Failed to send WhatsApp message");
+};
+
 export const sendChatMessage = async ({ message, language = "en", history = [] }) => {
   const res = await fetch(`${API_BASE_URL}/api/chat`, {
     method: "POST",
@@ -329,6 +412,10 @@ export const speakDrawingText = async (text, language) => {
 export const speakWithElevenLabsVoice = async (text, voiceMode = "ai-female", options = {}) => {
   const cleanText = String(text || "").trim();
   if (!cleanText) return false;
+
+  if (isOfflineRuntime()) {
+    return speakWithBrowserVoice(cleanText, resolveElevenLabsVoiceMode(voiceMode), options);
+  }
 
   const url = await generateTtsAudioUrl({
     text: cleanText,

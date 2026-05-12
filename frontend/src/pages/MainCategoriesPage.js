@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card, Container, Row, Col } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../api/api";
+import { API_BASE_URL, fetchJson } from "../api/api";
 
 function MainCategoriesPage() {
   const [categories, setCategories] = useState([]);
@@ -18,8 +18,7 @@ function MainCategoriesPage() {
     normalizeCategoryName(cat?.name) === "dailyroutine" || cat?.route === "/daily-routine";
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/maincategories`)
-      .then((res) => res.json())
+    fetchJson(`${API_BASE_URL}/maincategories`)
       .then((data) => setCategories(data))
       .catch((err) => console.log(err));
   }, []);

@@ -72,6 +72,7 @@ const frontendPageRoutes = [
   /^\/icons\/[^/]+\/subicons\/[^/]+\/subsubicons\/[^/]+\/?$/,
   /^\/subicons\/[^/]+\/?$/,
   /^\/emergency\/?$/,
+  /^\/message\/?$/,
   /^\/training\/?$/,
   /^\/daily-routine\/?$/,
   /^\/express-drawing\/?$/,
@@ -210,6 +211,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 app.use('/public', express.static(publicPath));
 app.use("/public/uploads", (req, res, next) => {
   if (req.method !== "GET" && req.method !== "HEAD") {
@@ -282,6 +284,55 @@ const ensureAuthTables = async () => {
   `;
 };
 
+const ensureAacMessageTables = async () => {
+  await prisma.$executeRaw`
+    CREATE TABLE IF NOT EXISTS "AacMessage" (
+      "id" SERIAL NOT NULL,
+      "senderName" TEXT NOT NULL,
+      "message" TEXT NOT NULL,
+      "source" TEXT NOT NULL DEFAULT 'aac',
+      "senderPhone" TEXT,
+      "externalId" TEXT,
+      "senderId" INTEGER,
+      "receiverId" INTEGER,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "AacMessage_pkey" PRIMARY KEY ("id")
+    )
+  `;
+
+  await prisma.$executeRaw`
+    ALTER TABLE "AacMessage" ADD COLUMN IF NOT EXISTS "source" TEXT NOT NULL DEFAULT 'aac'
+  `;
+
+  await prisma.$executeRaw`
+    ALTER TABLE "AacMessage" ADD COLUMN IF NOT EXISTS "senderPhone" TEXT
+  `;
+
+  await prisma.$executeRaw`
+    ALTER TABLE "AacMessage" ADD COLUMN IF NOT EXISTS "externalId" TEXT
+  `;
+
+  await prisma.$executeRaw`
+    ALTER TABLE "AacMessage" ADD COLUMN IF NOT EXISTS "senderId" INTEGER
+  `;
+
+  await prisma.$executeRaw`
+    ALTER TABLE "AacMessage" ADD COLUMN IF NOT EXISTS "receiverId" INTEGER
+  `;
+
+  await prisma.$executeRaw`
+    CREATE INDEX IF NOT EXISTS "AacMessage_createdAt_idx" ON "AacMessage"("createdAt")
+  `;
+
+  await prisma.$executeRaw`
+    CREATE INDEX IF NOT EXISTS "AacMessage_receiverId_createdAt_idx" ON "AacMessage"("receiverId", "createdAt")
+  `;
+
+  await prisma.$executeRaw`
+    CREATE INDEX IF NOT EXISTS "AacMessage_senderId_createdAt_idx" ON "AacMessage"("senderId", "createdAt")
+  `;
+};
+
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 
 const isValidEmail = (email) =>
@@ -319,11 +370,38 @@ const serializeUser = (user) => ({
   createdAt: user.createdAt,
 });
 
+const parseUserId = (value) => {
+  const id = Number.parseInt(value, 10);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+const hasRequestValue = (value) =>
+  value !== undefined && value !== null && String(value).trim() !== "";
+
+const getUserDisplayName = (user) =>
+  [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+  user?.email ||
+  "";
+
 const readUserByEmail = async (email) => {
   const rows = await prisma.$queryRaw`
     SELECT "id", "firstName", "lastName", "email", "passwordHash", "salt", "condition", "createdAt"
     FROM "User"
     WHERE "email" = ${normalizeEmail(email)}
+    LIMIT 1
+  `;
+
+  return rows[0] || null;
+};
+
+const readPublicUserById = async (id) => {
+  const userId = parseUserId(id);
+  if (!userId) return null;
+
+  const rows = await prisma.$queryRaw`
+    SELECT "id", "firstName", "lastName", "email", "condition", "createdAt"
+    FROM "User"
+    WHERE "id" = ${userId}
     LIMIT 1
   `;
 
@@ -359,14 +437,45 @@ const signupUser = async (req, res) => {
       return res.status(409).json({ message: "Email already registered" });
     }
 
-    const { passwordHash, salt } = await hashPassword(password);
+    /*const { passwordHash, salt } = await hashPassword(password);
     const rows = await prisma.$queryRaw`
-      INSERT INTO "User" ("firstName", "lastName", "email", "passwordHash", "salt", "condition")
-      VALUES (${firstName}, ${lastName}, ${email}, ${passwordHash}, ${salt}, ${condition})
+      INSERT INTO "User" ("firstName", "lastName", "email", "passwordHash", "salt", "condition" "createdAt",
+    "updatedAt")
+      VALUES (${firstName}, ${lastName}, ${email}, ${passwordHash}, ${salt}, ${condition}$,
+    ${condition},
+    NOW(),
+    NOW()
       RETURNING "id", "firstName", "lastName", "email", "condition", "createdAt"
     `;
 
-    return res.status(201).json({ user: serializeUser(rows[0]) });
+    return res.status(201).json({ user: serializeUser(rows[0]) });*/
+ const { passwordHash, salt } = await hashPassword(password);
+
+const rows = await prisma.$queryRaw`
+  INSERT INTO "User" (
+    "firstName",
+    "lastName",
+    "email",
+    "passwordHash",
+    "salt",
+    "condition",
+    "createdAt",
+    "updatedAt"
+  )
+  VALUES (
+    ${firstName},
+    ${lastName},
+    ${email},
+    ${passwordHash},
+    ${salt},
+    ${condition},
+    NOW(),
+    NOW()
+  )
+  RETURNING "id", "firstName", "lastName", "email", "condition", "createdAt"
+`;
+
+return res.status(201).json({ user: serializeUser(rows[0]) });
   } catch (err) {
     if (isUniqueEmailError(err)) {
       return res.status(409).json({ message: "Email already registered" });
@@ -403,6 +512,29 @@ const loginUser = async (req, res) => {
 
 app.post(["/api/auth/signup", "/api/signup", "/signup"], signupUser);
 app.post(["/api/auth/login", "/api/login", "/login"], loginUser);
+
+app.get(["/api/users", "/users"], async (req, res) => {
+  const excludeUserId = parseUserId(req.query.excludeUserId);
+
+  try {
+    const rows = excludeUserId
+      ? await prisma.$queryRaw`
+          SELECT "id", "firstName", "lastName", "email", "condition", "createdAt"
+          FROM "User"
+          WHERE "id" <> ${excludeUserId}
+          ORDER BY "firstName" ASC, "lastName" ASC, "email" ASC
+        `
+      : await prisma.$queryRaw`
+          SELECT "id", "firstName", "lastName", "email", "condition", "createdAt"
+          FROM "User"
+          ORDER BY "firstName" ASC, "lastName" ASC, "email" ASC
+        `;
+
+    res.json(rows.map(serializeUser));
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Failed to load users" });
+  }
+});
 
 const ELEVENLABS_VOICE_IDS = {
   male: process.env.ELEVENLABS_MALE_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb",
@@ -1499,6 +1631,196 @@ const serializeIcon = (icon) => {
   };
 };
 
+const OFFLINE_LANDING_MEDIA_URLS = [
+  "/images/communication.jpg",
+  "/images/R.jpg",
+  "/images/OIP.jpg",
+  "/images/autism.jpg",
+  "/images/cerebral palsy.jpg",
+  "/images/Elderly.jpg",
+  "/images/emergency.jpg",
+  "/images/beginning to read.jpg",
+  "/images/Learning.jpg",
+  "/images/Tourist .jpg",
+  "/images/everyone.jpg",
+  "https://cdn-icons-png.flaticon.com/512/892/892781.png",
+  "https://cdn-icons-png.flaticon.com/512/1256/1256650.png",
+];
+
+const OFFLINE_AUDIO_FALLBACK_URLS = [
+  "/public/recordss/Eating.m4a",
+  "/public/recordss/Water.m4a",
+  "/public/recordss/Clothes.m4a",
+  "/public/recordss/Medicine.m4a",
+  "/public/recordss/Family.m4a",
+  "/public/recordss/Feelings.m4a",
+  "/public/recordss/Places.m4a",
+  "/public/recordss/Q.m4a",
+  "/public/recordss/Relations.m4a",
+  "/public/recordss/Times.m4a",
+  "/public/recordss/Tools.m4a",
+  "/public/recordss/Transport.m4a",
+  "/public/recordss/Verbs.m4a",
+  "/public/recordss/thing.m4a",
+];
+
+const OFFLINE_MEDIA_FIELDS = new Set([
+  "imageUrl",
+  "imgUrl",
+  "audioUrl",
+  "recordingUrl",
+]);
+
+const addOfflineMediaUrl = (mediaUrls, value) => {
+  const url = String(value || "").trim();
+  if (!url || url.startsWith("blob:") || url.startsWith("data:")) return;
+  mediaUrls.add(url);
+};
+
+const collectOfflineMediaUrls = (value, mediaUrls, seen = new WeakSet()) => {
+  if (!value) return;
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectOfflineMediaUrls(item, mediaUrls, seen));
+    return;
+  }
+
+  if (typeof value !== "object" || value instanceof Date) {
+    return;
+  }
+
+  if (seen.has(value)) return;
+  seen.add(value);
+
+  Object.entries(value).forEach(([key, item]) => {
+    if (OFFLINE_MEDIA_FIELDS.has(key)) {
+      addOfflineMediaUrl(mediaUrls, item);
+    }
+
+    if (Array.isArray(item) || (item && typeof item === "object" && !(item instanceof Date))) {
+      collectOfflineMediaUrls(item, mediaUrls, seen);
+    }
+  });
+};
+
+const stripIconChildrenForOffline = (icon) => ({
+  ...icon,
+  subIcons: [],
+});
+
+const buildOfflineSubIconDetail = (subIcon, icon) => ({
+  ...subIcon,
+  icon: icon ? stripIconChildrenForOffline(icon) : null,
+});
+
+const buildOfflineSubSubIconDetail = (subSubIcon, subIcon, icon) => ({
+  ...subSubIcon,
+  subIcon: subIcon
+    ? {
+        ...subIcon,
+        subSubIcons: [],
+        icon: icon ? stripIconChildrenForOffline(icon) : null,
+      }
+    : null,
+});
+
+const readOfflineTimePeriods = async () => {
+  if (typeof prisma.timePeriod?.findMany === "function") {
+    return prisma.timePeriod.findMany({
+      orderBy: [{ order: "asc" }, { id: "asc" }],
+    });
+  }
+
+  return prisma.$queryRaw`
+    SELECT "id", "name", "order", "mainCategoryId"
+    FROM "TimePeriod"
+    ORDER BY "order" ASC NULLS LAST, "id" ASC
+  `;
+};
+
+const readOfflineEmergencyNumbers = async () => {
+  if (typeof prisma.emergencyNumber?.findMany === "function") {
+    return prisma.emergencyNumber.findMany({ orderBy: { id: "asc" } });
+  }
+
+  return prisma.$queryRaw`
+    SELECT "id", "number", "label"
+    FROM "EmergencyNumber"
+    ORDER BY "id" ASC
+  `;
+};
+
+const buildOfflineManifest = async () => {
+  const [mainCategories, timePeriods, rawIcons, emergencyNumbers] = await Promise.all([
+    prisma.mainCategory.findMany({ orderBy: { id: "asc" } }),
+    readOfflineTimePeriods(),
+    prisma.icon.findMany({ include: iconInclude, orderBy: { id: "asc" } }),
+    readOfflineEmergencyNumbers(),
+  ]);
+  const icons = rawIcons.map(serializeIcon);
+  const responses = {
+    "/maincategories": mainCategories,
+    "/icons": icons,
+    "/subicons": icons.flatMap((icon) => icon.subIcons || []),
+    "/emergency-numbers": emergencyNumbers,
+  };
+
+  for (const category of mainCategories) {
+    responses[`/maincategories/${category.id}/timeperiods`] = timePeriods.filter(
+      (period) => period.mainCategoryId === category.id,
+    );
+    responses[`/maincategories/${category.id}/icons`] = icons.filter(
+      (icon) => icon.mainCategoryId === category.id,
+    );
+  }
+
+  for (const period of timePeriods) {
+    responses[`/timeperiods/${period.id}/icons`] = icons.filter(
+      (icon) => icon.timePeriodId === period.id,
+    );
+  }
+
+  for (const icon of icons) {
+    responses[`/icons/${icon.id}`] = icon;
+    responses[`/icons/${icon.id}/subicons`] = icon.subIcons || [];
+
+    for (const subIcon of icon.subIcons || []) {
+      responses[`/icons/${icon.id}/subicons/${subIcon.id}`] =
+        buildOfflineSubIconDetail(subIcon, icon);
+      responses[`/subicons/${subIcon.id}/subsubicons`] = subIcon.subSubIcons || [];
+
+      for (const subSubIcon of subIcon.subSubIcons || []) {
+        responses[`/icons/${icon.id}/subicons/${subIcon.id}/subsubicons/${subSubIcon.id}`] =
+          buildOfflineSubSubIconDetail(subSubIcon, subIcon, icon);
+      }
+    }
+  }
+
+  const mediaUrls = new Set([
+    "/public/default.jpg",
+    ...OFFLINE_LANDING_MEDIA_URLS,
+    ...OFFLINE_AUDIO_FALLBACK_URLS,
+  ]);
+  collectOfflineMediaUrls(responses, mediaUrls);
+
+  return {
+    version: new Date().toISOString(),
+    generatedAt: new Date().toISOString(),
+    responses,
+    mediaUrls: Array.from(mediaUrls),
+  };
+};
+
+app.get(["/offline-manifest", "/api/offline-manifest"], async (req, res) => {
+  try {
+    const manifest = await buildOfflineManifest();
+    res.set("Cache-Control", "no-store");
+    res.json(manifest);
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Failed to build offline manifest" });
+  }
+});
+
 // ===== ICON APIs =====
 app.get("/icons", async (req, res) => {
   const { category } = req.query;
@@ -2099,6 +2421,395 @@ app.post("/emergency-numbers", async (req, res) => {
   }
 });
 
+const normalizeWebhookText = (value) =>
+  String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const normalizeWhatsappPhone = (value) =>
+  normalizeWebhookText(value).replace(/^whatsapp:/i, "");
+
+const normalizeMessageSource = (source) => {
+  const normalizedSource = normalizeWebhookText(source).toLowerCase();
+  return normalizedSource || "aac";
+};
+
+const normalizeWhatsappRecipientNumber = (value) => {
+  const digits = normalizeWebhookText(value).replace(/\D/g, "");
+  if (!digits) return "";
+
+  if (digits.startsWith("00")) return digits.slice(2);
+  if (digits.startsWith("0") && digits.length === 11) return `20${digits.slice(1)}`;
+  if (digits.startsWith("20")) return digits;
+
+  return digits;
+};
+
+const sendWhatsappTextMessage = async ({ to, message }) => {
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const graphApiVersion = process.env.WHATSAPP_GRAPH_API_VERSION || "v25.0";
+
+  if (!phoneNumberId || !accessToken) {
+    const error = new Error(
+      "WhatsApp Business API is not configured. Set WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN.",
+    );
+    error.status = 501;
+    throw error;
+  }
+
+  const recipientNumber = normalizeWhatsappRecipientNumber(to);
+  const cleanMessage = normalizeWebhookText(message);
+
+  if (!recipientNumber) {
+    const error = new Error("Recipient WhatsApp number is required");
+    error.status = 400;
+    throw error;
+  }
+
+  if (!cleanMessage) {
+    const error = new Error("WhatsApp message is required");
+    error.status = 400;
+    throw error;
+  }
+
+  const whatsappRes = await fetch(
+    `https://graph.facebook.com/${graphApiVersion}/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: recipientNumber,
+        type: "text",
+        text: {
+          preview_url: false,
+          body: cleanMessage,
+        },
+      }),
+    },
+  );
+
+  const responseText = await whatsappRes.text();
+  let responseBody = {};
+
+  try {
+    responseBody = responseText ? JSON.parse(responseText) : {};
+  } catch (err) {
+    responseBody = { message: responseText };
+  }
+
+  if (!whatsappRes.ok) {
+    const error = new Error(
+      responseBody?.error?.message ||
+      responseBody?.message ||
+      "WhatsApp send failed",
+    );
+    error.status = whatsappRes.status;
+    error.details = responseBody;
+    throw error;
+  }
+
+  return responseBody;
+};
+
+const saveIncomingAacMessage = async ({
+  senderName,
+  message,
+  source = "aac",
+  senderPhone = null,
+  externalId = null,
+  senderId = null,
+  receiverId = null,
+}) => {
+  const cleanSenderPhone = normalizeWhatsappPhone(senderPhone);
+  const cleanSenderId = parseUserId(senderId);
+  const cleanReceiverId = parseUserId(receiverId);
+  const cleanSenderName =
+    normalizeWebhookText(senderName) ||
+    cleanSenderPhone ||
+    (normalizeMessageSource(source) === "whatsapp" ? "WhatsApp contact" : "AAC user");
+  const cleanMessage = normalizeWebhookText(message);
+  const cleanSource = normalizeMessageSource(source);
+  const cleanExternalId = normalizeWebhookText(externalId) || null;
+
+  if (!cleanMessage) {
+    throw new Error("Message is required");
+  }
+
+  if (cleanExternalId) {
+    const existingRows = await prisma.$queryRaw`
+      SELECT "id", "senderName", "message", "source", "senderPhone", "externalId", "senderId", "receiverId", "createdAt"
+      FROM "AacMessage"
+      WHERE "externalId" = ${cleanExternalId}
+      LIMIT 1
+    `;
+
+    if (existingRows[0]) {
+      return existingRows[0];
+    }
+  }
+
+  const rows = await prisma.$queryRaw`
+    INSERT INTO "AacMessage" (
+      "senderName",
+      "message",
+      "source",
+      "senderPhone",
+      "externalId",
+      "senderId",
+      "receiverId"
+    )
+    VALUES (
+      ${cleanSenderName.slice(0, 80)},
+      ${cleanMessage.slice(0, 1000)},
+      ${cleanSource.slice(0, 40)},
+      ${cleanSenderPhone || null},
+      ${cleanExternalId},
+      ${cleanSenderId},
+      ${cleanReceiverId}
+    )
+    RETURNING "id", "senderName", "message", "source", "senderPhone", "externalId", "senderId", "receiverId", "createdAt"
+  `;
+
+  return rows[0];
+};
+
+const extractTwilioWhatsappMessage = (body) => {
+  const message = normalizeWebhookText(body?.Body || body?.body || body?.message);
+  if (!message) return null;
+
+  const senderPhone = normalizeWhatsappPhone(body?.From || body?.from || body?.WaId);
+
+  return {
+    senderName:
+      normalizeWebhookText(body?.ProfileName || body?.profileName || body?.senderName) ||
+      senderPhone,
+    senderPhone,
+    message,
+    externalId: normalizeWebhookText(body?.MessageSid || body?.SmsSid || body?.SmsMessageSid),
+  };
+};
+
+const extractMetaWhatsappMessages = (payload) => {
+  const messages = [];
+
+  for (const entry of payload?.entry || []) {
+    for (const change of entry?.changes || []) {
+      const value = change?.value || {};
+      const contactsByWaId = new Map(
+        (value.contacts || []).map((contact) => [
+          normalizeWebhookText(contact?.wa_id),
+          normalizeWebhookText(contact?.profile?.name),
+        ]),
+      );
+
+      for (const item of value.messages || []) {
+        const messageText =
+          normalizeWebhookText(item?.text?.body) ||
+          normalizeWebhookText(item?.button?.text) ||
+          normalizeWebhookText(item?.interactive?.button_reply?.title) ||
+          normalizeWebhookText(item?.interactive?.list_reply?.title);
+
+        if (!messageText) continue;
+
+        const senderPhone = normalizeWhatsappPhone(item?.from);
+        messages.push({
+          senderName: contactsByWaId.get(senderPhone) || senderPhone,
+          senderPhone,
+          message: messageText,
+          externalId: normalizeWebhookText(item?.id),
+        });
+      }
+    }
+  }
+
+  return messages;
+};
+
+app.get(["/aac-messages", "/api/aac-messages"], async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+  const receiverId = parseUserId(req.query.receiverId);
+  const senderId = parseUserId(req.query.senderId);
+
+  try {
+    let rows;
+
+    if (receiverId) {
+      rows = await prisma.$queryRaw`
+        SELECT "id", "senderName", "message", "source", "senderPhone", "externalId", "senderId", "receiverId", "createdAt"
+        FROM "AacMessage"
+        WHERE "receiverId" = ${receiverId}
+        ORDER BY "createdAt" DESC, "id" DESC
+        LIMIT ${limit}
+      `;
+    } else if (senderId) {
+      rows = await prisma.$queryRaw`
+        SELECT "id", "senderName", "message", "source", "senderPhone", "externalId", "senderId", "receiverId", "createdAt"
+        FROM "AacMessage"
+        WHERE "senderId" = ${senderId}
+        ORDER BY "createdAt" DESC, "id" DESC
+        LIMIT ${limit}
+      `;
+    } else {
+      rows = await prisma.$queryRaw`
+        SELECT "id", "senderName", "message", "source", "senderPhone", "externalId", "senderId", "receiverId", "createdAt"
+        FROM "AacMessage"
+        ORDER BY "createdAt" DESC, "id" DESC
+        LIMIT ${limit}
+      `;
+    }
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post(["/aac-messages", "/api/aac-messages"], async (req, res) => {
+  const rawSenderId = req.body?.senderId;
+  const rawReceiverId = req.body?.receiverId;
+  const senderId = hasRequestValue(rawSenderId) ? parseUserId(rawSenderId) : null;
+  const receiverId = hasRequestValue(rawReceiverId) ? parseUserId(rawReceiverId) : null;
+  let senderName = String(req.body?.senderName || "").trim();
+  const message = String(req.body?.message || "").trim();
+
+  if (hasRequestValue(rawSenderId) && !senderId) {
+    return res.status(400).json({ message: "Sender user is invalid" });
+  }
+
+  if (hasRequestValue(rawReceiverId) && !receiverId) {
+    return res.status(400).json({ message: "Receiver user is invalid" });
+  }
+
+  if (!message) {
+    return res.status(400).json({ message: "Message is required" });
+  }
+
+  if (senderName.length > 80) {
+    return res.status(400).json({ message: "Name is too long" });
+  }
+
+  if (message.length > 1000) {
+    return res.status(400).json({ message: "Message is too long" });
+  }
+
+  try {
+    const [senderUser, receiverUser] = await Promise.all([
+      senderId ? readPublicUserById(senderId) : Promise.resolve(null),
+      receiverId ? readPublicUserById(receiverId) : Promise.resolve(null),
+    ]);
+
+    if (senderId && !senderUser) {
+      return res.status(404).json({ message: "Sender user was not found" });
+    }
+
+    if (receiverId && !receiverUser) {
+      return res.status(404).json({ message: "Receiver user was not found" });
+    }
+
+    if (senderId && receiverId && senderId === receiverId) {
+      return res.status(400).json({ message: "Choose another user to receive the message" });
+    }
+
+    if (!senderName && senderUser) {
+      senderName = getUserDisplayName(senderUser);
+    }
+
+    if (!senderName) {
+      return res.status(400).json({ message: "Name is required" });
+    }
+
+    const row = await saveIncomingAacMessage({
+      senderName,
+      message,
+      source: "aac",
+      senderId,
+      receiverId,
+    });
+    res.status(201).json(row);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post(["/whatsapp/send", "/api/whatsapp/send"], async (req, res) => {
+  try {
+    const result = await sendWhatsappTextMessage({
+      to: req.body?.to || req.body?.number,
+      message: req.body?.message || req.body?.text,
+    });
+
+    res.json({
+      sent: true,
+      provider: "meta",
+      result,
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      message: err.message || "WhatsApp send failed",
+      details: err.details,
+    });
+  }
+});
+
+app.get(["/webhooks/whatsapp", "/whatsapp/webhook", "/api/whatsapp/webhook"], (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+  const expectedToken = process.env.WHATSAPP_VERIFY_TOKEN;
+
+  if (mode === "subscribe" && challenge && (!expectedToken || token === expectedToken)) {
+    return res.status(200).send(String(challenge));
+  }
+
+  return res.sendStatus(403);
+});
+
+app.post(["/webhooks/whatsapp", "/whatsapp/webhook", "/api/whatsapp/webhook"], async (req, res) => {
+  try {
+    const twilioMessage = extractTwilioWhatsappMessage(req.body);
+    const metaMessages = extractMetaWhatsappMessages(req.body);
+    const genericMessage =
+      !twilioMessage && !metaMessages.length
+        ? {
+            senderName: req.body?.senderName || req.body?.name || req.body?.from,
+            senderPhone: req.body?.senderPhone || req.body?.phone || req.body?.from,
+            message: req.body?.message || req.body?.text,
+            externalId: req.body?.externalId || req.body?.id,
+          }
+        : null;
+
+    const incomingMessages = [
+      ...(twilioMessage ? [twilioMessage] : []),
+      ...metaMessages,
+      ...(genericMessage?.message ? [genericMessage] : []),
+    ];
+
+    const savedMessages = [];
+    for (const incomingMessage of incomingMessages) {
+      savedMessages.push(
+        await saveIncomingAacMessage({
+          ...incomingMessage,
+          source: "whatsapp",
+        }),
+      );
+    }
+
+    return res.status(200).json({
+      received: true,
+      count: savedMessages.length,
+      messages: savedMessages,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message || "WhatsApp webhook failed" });
+  }
+});
+
 app.get("/speech/attempts", async (req, res) => {
   const { word } = req.query;
   try {
@@ -2143,6 +2854,12 @@ const startServer = async () => {
     await ensureAuthTables();
   } catch (err) {
     console.error("Auth table setup failed:", err.message);
+  }
+
+  try {
+    await ensureAacMessageTables();
+  } catch (err) {
+    console.error("AAC message table setup failed:", err.message);
   }
 
   app.listen(PORT, "0.0.0.0", () => console.log(`Project running on port ${PORT}`));
