@@ -14,7 +14,7 @@ import {
 } from "../api/api";
 import { trackRoutinePlayback } from "../utils/dailyRoutine";
 
-const AUDIO_PLAYBACK_RATE = 1.4;
+const AUDIO_PLAYBACK_RATE = 0.5;
 const AUDIO_FALLBACK_TIMEOUT_MS = 7000;
 const CATEGORY_AUDIO_FALLBACKS = {
   "Food and Drink": "/public/recordss/Eating.m4a",
@@ -178,6 +178,16 @@ useEffect(() => () => {
   });
   preloadedAudioRef.current.clear();
 }, []);
+
+useEffect(() => {
+  if (typeof window !== "undefined" && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+
+  if (audioRef.current) {
+    audioRef.current.pause();
+  }
+}, [voiceMode]);
 
 /* ================= SELECT ICON ================= */
 

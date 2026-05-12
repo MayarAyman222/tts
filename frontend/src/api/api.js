@@ -24,6 +24,8 @@ const LEGACY_API_BASE_URLS = [
   "https://tts-production-77b9.up.railway.app",
 ];
 const ELEVENLABS_VOICE_MODE_MAP = {
+  male: "male",
+  female: "female",
   ai: "female",
   "ai-record": "female",
   "ai-records": "female",
@@ -192,9 +194,11 @@ export const speakWithBrowserVoice = async (text, voiceMode = "female", options 
 
   return new Promise((resolve) => {
     let settled = false;
+    let timeoutId = null;
     const settle = (value) => {
       if (settled) return;
       settled = true;
+      clearTimeout(timeoutId);
       resolve(value);
     };
 
@@ -204,7 +208,13 @@ export const speakWithBrowserVoice = async (text, voiceMode = "female", options 
     try {
       synth.cancel();
       synth.speak(utterance);
-      setTimeout(() => settle(true), Math.min(Math.max(cleanText.length * 90, 1500), 20000));
+      timeoutId = setTimeout(
+        () => {
+          synth.cancel();
+          settle(false);
+        },
+        Math.min(Math.max(cleanText.length * 120, 2500), 20000),
+      );
     } catch (err) {
       settle(false);
     }

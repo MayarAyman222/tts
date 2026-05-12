@@ -39,6 +39,12 @@ function SubIconDetail() {
     if (iconId && subIconId) fetchSubIcon();
   }, [iconId, subIconId]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  }, [voiceMode]);
+
   const audioUrl = normalizeMediaUrl(subIcon?.recordingUrl || subIcon?.audioUrl);
   const speechText = String(subIcon?.expression || subIcon?.title || "").trim();
   const canSpeak = voiceMode !== "human" ? Boolean(speechText) : Boolean(audioUrl);
