@@ -578,8 +578,14 @@ const readApiError = async (response) => {
   }
 };
 
+const getElevenLabsDetailStatus = (details) =>
+  details?.detail?.status || details?.detail?.code || "";
+
+const shouldUseGoogleTtsFallback = (details) =>
+  getElevenLabsDetailStatus(details) === "detected_unusual_activity";
+
 const getElevenLabsErrorMessage = (status, details) => {
-  const detailStatus = details?.detail?.status;
+  const detailStatus = getElevenLabsDetailStatus(details);
   const detailCode = details?.detail?.code;
 
   if (status === 402 || detailCode === "paid_plan_required") {
@@ -898,6 +904,24 @@ app.post("/api/tts/speak", async (req, res) => {
     if (!elevenLabsRes.ok) {
       const details = await readApiError(elevenLabsRes);
       const message = getElevenLabsErrorMessage(elevenLabsRes.status, details);
+
+      if (shouldUseGoogleTtsFallback(details)) {
+        try {
+          const lang = resolveGoogleTtsLanguage(req.body?.language, req.body?.voice);
+          const audioBuffer = await getGoogleTtsAudioBuffer(text, lang);
+
+          res.setHeader("Content-Type", "audio/mpeg");
+          res.setHeader("Cache-Control", "no-store");
+          res.setHeader("X-TTS-Provider", "google");
+          res.setHeader("X-TTS-Fallback-Reason", "elevenlabs_detected_unusual_activity");
+          return res.send(audioBuffer);
+        } catch (fallbackErr) {
+          return res.status(elevenLabsRes.status).json({
+            message: `${message} Google TTS fallback also failed: ${fallbackErr.message}`,
+            details,
+          });
+        }
+      }
 
       return res.status(elevenLabsRes.status).json({
         message,

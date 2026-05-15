@@ -23,6 +23,11 @@ const LEGACY_API_BASE_URLS = [
   "http://168.231.101.20:5551",
   "https://tts-production-77b9.up.railway.app",
 ];
+const ELEVENLABS_DIRECT_API_KEY = process.env.REACT_APP_ELEVENLABS_API_KEY || "";
+const ELEVENLABS_DIRECT_MODEL_ID =
+  process.env.REACT_APP_ELEVENLABS_MODEL_ID || "eleven_multilingual_v2";
+const ELEVENLABS_DIRECT_API_BASE_URL =
+  process.env.REACT_APP_ELEVENLABS_API_BASE_URL || "https://api.elevenlabs.io/v1";
 const ELEVENLABS_VOICE_MODE_MAP = {
   male: "male",
   female: "female",
@@ -34,6 +39,10 @@ const ELEVENLABS_VOICE_MODE_MAP = {
   ai_male: "male",
   ai_female: "female",
   "records-with-ai": "female",
+};
+const ELEVENLABS_DIRECT_VOICE_IDS = {
+  male: process.env.REACT_APP_ELEVENLABS_MALE_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb",
+  female: process.env.REACT_APP_ELEVENLABS_FEMALE_VOICE_ID || "hpp4J3VqNfWAUOO0d1Us",
 };
 
 const normalizeBaseUrl = (value) => String(value || "").replace(/\/+$/, "");
@@ -231,6 +240,22 @@ export const resolveElevenLabsVoiceMode = (voiceMode) => {
   return ELEVENLABS_VOICE_MODE_MAP[normalizedVoiceMode] || "female";
 };
 
+const resolveDirectElevenLabsVoiceId = (voice) => {
+  const requestedVoice = String(voice || "").trim();
+  const normalizedVoice = requestedVoice.toLowerCase();
+  const aliasVoice = ELEVENLABS_VOICE_MODE_MAP[normalizedVoice] || normalizedVoice;
+
+  if (ELEVENLABS_DIRECT_VOICE_IDS[aliasVoice]) {
+    return ELEVENLABS_DIRECT_VOICE_IDS[aliasVoice];
+  }
+
+  if (Object.values(ELEVENLABS_DIRECT_VOICE_IDS).includes(requestedVoice)) {
+    return requestedVoice;
+  }
+
+  return requestedVoice;
+};
+
 export const translateText = async (text, targetLang) => {
   const res = await fetch(`${API_BASE_URL}/api/translate`, {
     method: "POST",
@@ -408,6 +433,57 @@ const notifyTtsFallback = (message, onFallback) => {
   }
 };
 
+const readTtsErrorData = async (res, fallbackMessage) => {
+  const errorText = await res.text();
+
+  try {
+    return errorText ? JSON.parse(errorText) : {};
+  } catch (err) {
+    return { message: errorText || fallbackMessage };
+  }
+};
+
+const generateDirectElevenLabsAudioUrl = async ({ text, voice } = {}) => {
+  const apiKey = String(ELEVENLABS_DIRECT_API_KEY || "").trim();
+  const voiceId = resolveDirectElevenLabsVoiceId(voice);
+
+  if (!apiKey) {
+    throw new Error("ElevenLabs browser API key is not configured");
+  }
+
+  if (!voiceId) {
+    throw new Error("ElevenLabs voice is not configured");
+  }
+
+  const res = await fetch(
+    `${normalizeBaseUrl(ELEVENLABS_DIRECT_API_BASE_URL)}/text-to-speech/${voiceId}`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "audio/mpeg",
+        "Content-Type": "application/json",
+        "xi-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        text,
+        model_id: ELEVENLABS_DIRECT_MODEL_ID,
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+        },
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const data = await readTtsErrorData(res, "ElevenLabs browser TTS failed");
+    throw new Error(getTtsErrorMessage(data, "ElevenLabs browser TTS failed"));
+  }
+
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+};
+
 export const generateTtsAudioUrl = async ({
   text,
   voice,
@@ -415,6 +491,29 @@ export const generateTtsAudioUrl = async ({
   fallbackToGoogle = true,
   onFallback,
 } = {}) => {
+  if (String(ELEVENLABS_DIRECT_API_KEY || "").trim()) {
+    try {
+      return await generateDirectElevenLabsAudioUrl({ text, voice });
+    } catch (directError) {
+      if (!fallbackToGoogle) {
+        throw directError;
+      }
+
+      console.warn("ElevenLabs browser TTS failed; using Google fallback.", directError);
+
+      try {
+        return await generateGoogleTtsAudioUrl({
+          text,
+          language: language || voice,
+        });
+      } catch (fallbackError) {
+        throw new Error(
+          `${directError.message}\n\nGoogle TTS fallback failed: ${fallbackError.message}`,
+        );
+      }
+    }
+  }
+
   const res = await fetch(`${API_BASE_URL}/api/tts/speak`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -422,15 +521,7 @@ export const generateTtsAudioUrl = async ({
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
-    let data = {};
-
-    try {
-      data = errorText ? JSON.parse(errorText) : {};
-    } catch (err) {
-      data = { message: errorText };
-    }
-
+    const data = await readTtsErrorData(res, "TTS failed");
     const message = getTtsErrorMessage(data);
 
     if (fallbackToGoogle) {
