@@ -175,10 +175,17 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 //app.use(cors());
+/*const allowedOrigins = new Set([
+  "https://tts-eight-iota.vercel.app",
+  "https://tts-production-6e70.up.railway.app",
+  "https://tts-production-77b9.up.railway.app",
+]);*/
 const allowedOrigins = new Set([
   "https://tts-eight-iota.vercel.app",
   "https://tts-production-6e70.up.railway.app",
   "https://tts-production-77b9.up.railway.app",
+  "https://tts-production-5dda.up.railway.app",
+  "https://tts-git-main-mayarayman222s-projects.vercel.app",
 ]);
 
 const DEV_HOSTNAME_RE =
