@@ -50,9 +50,11 @@
 .subsub-detail-image {
   width: 100%;
   height: 360px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
+  padding: 14px;
   border-radius: 8px;
-  background: #f4ecde;
+  background: #fff;
 }
 
 .subsub-detail-content h1 {
@@ -136,5 +138,6 @@
 
   .subsub-detail-image {
     height: 280px;
+    padding: 10px;
   }
 }
