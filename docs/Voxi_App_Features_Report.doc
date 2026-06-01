@@ -1,0 +1,98 @@
+{\rtf1\ansi\deff0\paperw11906\paperh16838\margl1134\margr1134\margt1134\margb1134
+{\fonttbl{\f0 Arial;}}
+\fs28\b Voxi App Features Report\b0\par
+\fs20 Version: Feature implementation summary for the current Voxi application\par
+\par
+\b 1. Project Overview\b0\par
+Voxi is an AAC communication web application designed to help users express needs, feelings, actions, emergency messages, and daily communication through visual icons, speech playback, training tools, drawing recognition, and assistant support. The app is built as a React frontend connected to an Express and Prisma backend with PostgreSQL as the database.\par
+\par
+The system includes authentication, multilingual-ready AAC content, icon navigation, speech output, user-to-user messages, emergency support, speech training, drawing-to-text recognition, offline mode, and an AAC assistant. The implementation combines browser APIs, backend APIs, media uploads, database relations, and external speech services.\par
+\par
+\b 2. Main Technologies Used\b0\par
+\bullet\tab React was used to build the frontend interface and pages.\par
+\bullet\tab React Router was used to manage routes such as login, signup, main categories, icons, emergency, training, drawing, chat, and daily routine.\par
+\bullet\tab React Bootstrap and CSS files were used for layout, cards, forms, modals, buttons, and responsive screens.\par
+\bullet\tab AppContext and localStorage were used to store the logged-in user and offline mode state.\par
+\bullet\tab Express.js was used to create backend REST APIs.\par
+\bullet\tab Prisma Client was used to connect the backend to PostgreSQL tables.\par
+\bullet\tab PostgreSQL stores users, categories, icons, subicons, messages, emergency numbers, and speech attempts.\par
+\bullet\tab Multer was used for uploading images and audio files.\par
+\bullet\tab ElevenLabs, Google TTS, and browser speech synthesis were used for speech output.\par
+\bullet\tab Web Speech API and MediaRecorder were used in the speech training feature.\par
+\bullet\tab Tesseract.js was used for drawing and text recognition.\par
+\bullet\tab Service Worker and Cache Storage were used for offline mode.\par
+\bullet\tab WhatsApp deep links and backend WhatsApp API endpoints were used for urgent communication support.\par
+\par
+\b 3. Authentication Feature\b0\par
+The app supports signup and login. The signup page collects first name, last name, email, password, and patient condition. The frontend sends the data to the backend endpoint POST /api/auth/signup. The backend validates the fields, checks if the email already exists, hashes the password using Node crypto scrypt, and stores the user in the User table.\par
+\par
+The login page sends email and password to POST /api/auth/login. The backend verifies the password against the stored hash and salt. After a successful login, the frontend stores the safe user object in localStorage using the key loggedInUser. This allows the user to remain logged in across page reloads. Logout removes the same localStorage key.\par
+\par
+\b 4. Landing Page and Offline Mode\b0\par
+The landing page introduces Voxi, shows app sections, and provides Login, Signup, Start, and Offline Mode actions. The online start button takes the user to /main-categories. Offline Mode stores a preference in localStorage and activates service-worker-based offline behavior.\par
+\par
+When the user starts offline mode while connected to the internet, the frontend calls syncOfflineCache. This fetches /offline-manifest from the backend, caches important API responses, images, audio files, and landing assets, then saves sync metadata. When the device is offline or offline mode is enabled, cachedFetch reads from Cache Storage before trying the network.\par
+\par
+\b 5. Main Categories and Navigation\b0\par
+The Main Categories page loads categories from GET /maincategories. Each category routes the user to the correct feature. Normal categories open the icons page. Real Life Activities opens time periods first. Emergency opens /emergency. Try and Train to Speak opens /training. Express Your Feelings By Drawing opens /express-drawing. AAC Assistant opens /chat. Daily Routine opens /daily-routine.\par
+\par
+Real Life Activities uses TimePeriod records. The frontend loads time periods from GET /maincategories/:id/timeperiods and then loads icons by GET /timeperiods/:id/icons. Other categories load icons directly using GET /maincategories/:id/icons.\par
+\par
+\b 6. AAC Icon Communication\b0\par
+The core AAC feature uses MainCategory, TimePeriod, Icon, SubIcon, and SubSubIcon records. Users choose a category, then an icon, then one or more subicons or subsubicons. The app generates a sentence from selected items using a time option, connector option, parent expression, and selected expressions.\par
+\par
+Speech output can use human recordings, browser speech synthesis, or AI voices. If the user chooses Human Records, the app plays stored audio files from Icon, SubIcon, or SubSubIcon records. If the user chooses male or female voice, browser speech synthesis is used. If the user chooses AI male or AI female, ElevenLabs is used, with Google TTS fallback when needed.\par
+\par
+The subicon and subsubicon pages also include volume and speed controls. Selected items are previewed visually before speech playback, helping the user understand the sentence before speaking it aloud.\par
+\par
+\b 7. Content Management for SubIcons and SubSubIcons\b0\par
+The app allows adding, editing, and deleting SubIcons and SubSubIcons. This is implemented using Bootstrap modals and FormData requests. For SubIcons, the frontend sends POST, PUT, or DELETE requests to /icons/:iconId/subicons and nested subicon endpoints. For SubSubIcons, it sends requests to /subicons/:subIconId/subsubicons and nested subsubicon endpoints.\par
+\par
+Each form supports title, expression, category, image, and audio. Images can be added by upload, URL, or camera capture. Audio can be added by upload, URL, or microphone capture. Multer stores uploaded files in backend/public/uploads, and the backend returns normalized media URLs.\par
+\par
+\b 8. Multilingual Content Model\b0\par
+The report ERD uses a multilingual-ready structure for titles and expressions. MainCategory and TimePeriod include title_en, title_ar, title_fr, and title_es. Icon, SubIcon, and SubSubIcon include title fields and expression fields for English, Arabic, French, and Spanish. EmergencyNumber includes label_en, label_ar, label_fr, and label_es.\par
+\par
+This structure makes the app ready to show the same AAC content in multiple languages without duplicating whole records. The frontend can later select the correct field based on the current selected language.\par
+\par
+\b 9. Daily Routine Feature\b0\par
+Daily Routine is generated automatically from repeated usage. Every time a user plays a SubIcon or SubSubIcon, the frontend calls trackRoutinePlayback. This stores the item in localStorage with its title, expression, image, audio, parent category, source path, speak count, first spoken time, and last spoken time.\par
+\par
+When an item is spoken three times or more, it appears on the Daily Routine page. The page groups items by parent title or category. Users can speak one item, speak the whole routine, open the original source item, remove one item, or clear the full routine.\par
+\par
+\b 10. User-to-User AAC Messaging\b0\par
+The AAC Message page allows one logged-in user to send a message to another logged-in user. The sender selects a receiver from GET /api/users, writes a custom message or adds a quick phrase, previews the message, and submits it to POST /aac-messages.\par
+\par
+The AacMessage table stores senderId, receiverId, senderName, message, source, and createdAt. The receiving user can open the Emergency page and see messages addressed to their account. The Emergency page polls GET /aac-messages?receiverId=user.id every three seconds. Users can press Speak to hear the received message.\par
+\par
+The ERD also includes replyToId in AacMessage. This field is useful for direct reply threading, so User 2 can reply to a message from User 1 while keeping the reply connected to the original message.\par
+\par
+\b 11. Emergency Feature\b0\par
+The Emergency page has two main roles: emergency numbers and incoming messages. Emergency numbers are loaded from GET /emergency-numbers and can be added using POST /emergency-numbers. Each number can have multilingual labels.\par
+\par
+The page also includes Send Urgent Message. The user selects a saved emergency number, writes an urgent message, and the app opens WhatsApp using a wa.me link with the phone number and text. The page also has Auto Speak. When enabled, new incoming AAC messages are spoken automatically using ElevenLabs first and browser speech as a fallback.\par
+\par
+\b 12. WhatsApp Integration\b0\par
+The backend includes endpoints for WhatsApp sending and webhooks. POST /api/whatsapp/send sends a text message through the Meta Graph API when WhatsApp credentials are configured. The webhook endpoints receive WhatsApp replies from Twilio, Meta, or a generic payload. Incoming WhatsApp messages are normalized and saved into AacMessage with source set to whatsapp.\par
+\par
+\b 13. Speech Training Feature\b0\par
+The Try and Train to Speak page helps users practice pronunciation. The user enters a target word or sentence, selects a language, and starts recording. The app checks browser support, secure context, internet availability, microphone permission, and then starts MediaRecorder and Web Speech recognition.\par
+\par
+When speech is recognized, the app compares the transcript with the target text using normalized Levenshtein distance. It calculates a score from 0 to 100, shows whether the score passed the required level, and stores attempts in localStorage. A chart and table show progress over time. The recorded audio is also available for playback.\par
+\par
+\b 14. Express Your Feelings By Drawing\b0\par
+The drawing feature lets the user draw text or a simple feeling on a canvas. The app sends the canvas image as a PNG data URL to POST /api/drawing/recognize. The backend preprocesses the PNG and uses Tesseract.js with Arabic or English OCR data depending on the selected language.\par
+\par
+The recognized text is returned to the frontend, shown as editable text, and can then be spoken using Google TTS through POST /api/tts/gtts. The user can clear the drawing or clear the recognized text.\par
+\par
+\b 15. AAC Assistant Feature\b0\par
+The AAC Assistant page is a chat interface for AAC support questions. The user can choose a language, type a question, or press a quick prompt. The frontend sends the question and chat history to POST /api/chat.\par
+\par
+The backend can use a configured Groq provider, or it can return answers from a local AAC dataset. If the input is unclear, the backend returns a clarification response. The user can also press Speak to hear the last assistant reply using Google TTS, with play and pause behavior on the frontend.\par
+\par
+\b 16. Database Relationships\b0\par
+The data model is relational. MainCategory has many TimePeriods and Icons. TimePeriod can group many Icons. Icon has many SubIcons. SubIcon has many SubSubIcons. User sends and receives many AacMessages. AacMessage can reference another AacMessage through replyToId for replies. User can also create MainCategories, save EmergencyNumbers, and have SpeechAttempts.\par
+\par
+\b 17. Conclusion\b0\par
+Voxi combines AAC visual communication, speech output, emergency messaging, user-to-user communication, speech training, drawing recognition, offline access, and assistant support in one system. The implementation uses React for interaction, Express APIs for backend logic, Prisma and PostgreSQL for structured data, media upload handling for custom content, browser APIs for speech and recording, OCR for drawing recognition, and TTS services for audio output.\par
+}

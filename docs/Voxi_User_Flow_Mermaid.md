@@ -320,3 +320,139 @@ flowchart TD
   OfflineRuntime -- No --> Express
 ```
 
+## 8. Relational Tables / ERD
+
+```mermaid
+erDiagram
+  MainCategory {
+    Int id PK
+    String name UK
+    String title_en
+    String title_ar
+    String title_fr
+    String title_es
+    String imgUrl "nullable"
+    Int userId FK "nullable"
+  }
+
+  TimePeriod {
+    Int id PK
+    String name
+    String title_en
+    String title_ar
+    String title_fr
+    String title_es
+    String imgUrl "nullable"
+    Int order
+    Int mainCategoryId FK
+  }
+
+  Icon {
+    Int id PK
+    String title_en
+    String title_ar
+    String title_fr
+    String title_es
+    String expression_en
+    String expression_ar
+    String expression_fr
+    String expression_es
+    String imgUrl "nullable"
+    String iconName "nullable"
+    String category
+    String audioUrl "nullable"
+    Int mainCategoryId FK
+    Int timePeriodId FK "nullable"
+    DateTime createdAt
+  }
+
+  SubIcon {
+    Int id PK
+    String title_en
+    String title_ar
+    String title_fr
+    String title_es
+    String expression_en
+    String expression_ar
+    String expression_fr
+    String expression_es
+    String imgUrl
+    String category
+    String audioUrl "nullable"
+    Int iconId FK
+    DateTime createdAt
+  }
+
+  SubSubIcon {
+    Int id PK
+    String title_en
+    String title_ar
+    String title_fr
+    String title_es
+    String expression_en
+    String expression_ar
+    String expression_fr
+    String expression_es
+    String imgUrl "nullable"
+    String category
+    String audioUrl "nullable"
+    Int subIconId FK
+    DateTime createdAt
+  }
+
+  User {
+    Int id PK
+    String firstName
+    String lastName
+    String email UK
+    String passwordHash
+    String salt
+    Condition condition
+    DateTime createdAt
+    DateTime updatedAt
+  }
+
+  AacMessage {
+    Int id PK
+    String senderName
+    String message
+    String source
+    String senderPhone "nullable"
+    String externalId "nullable"
+    Int senderId FK "nullable"
+    Int receiverId FK "nullable"
+    Int replyToId FK "nullable"
+    DateTime createdAt
+  }
+
+  EmergencyNumber {
+    Int id PK
+    String number UK
+    String label_en
+    String label_ar
+    String label_fr
+    String label_es
+    Int userId FK "nullable"
+  }
+
+  SpeechAttempt {
+    Int id PK
+    String word
+    String transcript
+    Int score
+    Int userId FK "nullable"
+    DateTime createdAt
+  }
+
+  MainCategory ||--o{ TimePeriod : has
+  MainCategory ||--o{ Icon : contains
+  TimePeriod |o--o{ Icon : optionally_groups
+  Icon ||--o{ SubIcon : has
+  SubIcon ||--o{ SubSubIcon : has
+  User |o--o{ MainCategory : creates
+  User |o--o{ AacMessage : sends
+  User |o--o{ AacMessage : receives
+  User |o--o{ EmergencyNumber : saves
+  User |o--o{ SpeechAttempt : practices
+  AacMessage |o--o{ AacMessage : replies_to
+```

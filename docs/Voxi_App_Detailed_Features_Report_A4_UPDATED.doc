@@ -1,0 +1,253 @@
+{\rtf1\ansi\deff0\paperw11906\paperh16838\margl1134\margr1134\margt1134\margb1134
+{\fonttbl{\f0 Arial;}}
+\fs28\b Voxi App Detailed Features Report\b0\par
+\fs20 A4 report explaining every main feature, what was used, how it is used, and why it is important.\par
+\par
+\b 1. Project Overview\b0\par
+Voxi is an AAC (Augmentative and Alternative Communication) web application. It helps users who have difficulty speaking express needs, feelings, actions, emergency messages, and daily communication through icons, speech output, drawing recognition, training, messaging, and assistant support.\par
+\par
+The application is built with a React frontend and an Express backend. PostgreSQL with Prisma is used for structured data. The app also uses browser APIs, text-to-speech services, OCR, media uploads, offline caching, and WhatsApp integration.\par
+\par
+\b 2. React Frontend\b0\par
+\b What was used:\b0 React.\par
+\b How it is used:\b0 React builds all screens as components, such as Landing, Login, Signup, MainCategoriesPage, IconsPage, SubIconsPage, EmergencyPage, TrainingPage, ExpressDrawingPage, Chat, and DailyRoutinePage. React state stores selected icons, selected voice, selected language, form inputs, generated sentences, chat messages, training results, and drawing output.\par
+\b Importance:\b0 React makes the interface dynamic. Users can select icons, build sentences, open modals, send messages, draw, and receive feedback without reloading the page. This is very important for AAC users because communication should be fast and simple.\par
+\par
+\b 3. React Router\b0\par
+\b What was used:\b0 React Router.\par
+\b How it is used:\b0 It controls navigation between routes such as /login, /signup, /main-categories, /icons/:mainCategoryId, /subicons/:iconId, /emergency, /message, /training, /daily-routine, /express-drawing, and /chat. Dynamic parameters like iconId and subIconId are used to load the correct data.\par
+\b Importance:\b0 Routing gives the app a clear structure. It supports the AAC hierarchy: category, icon, subicon, and subsubicon. It also makes direct page access and maintenance easier.\par
+\par
+\b 4. UI Design: Bootstrap and CSS\b0\par
+\b What was used:\b0 Bootstrap, React Bootstrap, and custom CSS.\par
+\b How it is used:\b0 Bootstrap is used for containers, rows, columns, cards, buttons, forms, alerts, and modals. Custom CSS is used for AAC grids, cards, drawing canvas, daily routine layout, authentication pages, and detail pages.\par
+\b Importance:\b0 AAC interfaces must be visually clear. Cards and grids help users scan choices quickly. Large buttons and simple forms improve accessibility for children, elderly users, and caregivers.\par
+\par
+\b 5. AppContext and localStorage\b0\par
+\b What was used:\b0 React Context and browser localStorage.\par
+\b How it is used:\b0 AppContext stores the logged-in user, logout function, offline mode, and connection state. localStorage stores loggedInUser, offline mode preference, daily routine items, training attempts, and icon ordering for selected categories.\par
+\b Importance:\b0 This keeps user state and progress available after refresh. It also allows features like Daily Routine and Training Progress to work locally without always needing the database.\par
+\par
+\b 6. Express Backend\b0\par
+\b What was used:\b0 Express.js.\par
+\b How it is used:\b0 Express provides API endpoints for authentication, users, categories, icons, subicons, subsubicons, TTS, chat, drawing recognition, emergency numbers, AAC messages, WhatsApp, speech attempts, and offline manifest generation.\par
+\b Importance:\b0 The backend centralizes important logic. It keeps database operations, password hashing, file uploads, service calls, and API credentials away from the frontend.\par
+\par
+\b 7. PostgreSQL and Prisma\b0\par
+\b What was used:\b0 PostgreSQL database and Prisma Client.\par
+\b How it is used:\b0 Prisma models represent User, MainCategory, TimePeriod, Icon, SubIcon, SubSubIcon, AacMessage, EmergencyNumber, and SpeechAttempt. The backend uses Prisma to read, create, update, and delete records.\par
+\b Importance:\b0 The app has many relationships. A category contains icons, an icon contains subicons, a subicon contains subsubicons, and users send messages to each other. A relational database is suitable for this structure.\par
+\par
+\b 8. Authentication\b0\par
+\b What was used:\b0 Signup, login, password hashing, and localStorage session storage.\par
+\b How it is used:\b0 Signup collects first name, last name, email, password, and condition. The backend validates fields, checks duplicate email, creates a salt, hashes the password with crypto.scrypt, and saves the user. Login verifies the password and returns a safe user object. The frontend saves the user in localStorage.\par
+\b Importance:\b0 Authentication is required for personal features, especially user-to-user messages, emergency inbox, personal emergency numbers, future personal categories, and user speech attempts.\par
+\par
+\b 9. Main Categories\b0\par
+\b What was used:\b0 MainCategory table and GET /maincategories.\par
+\b How it is used:\b0 The Main Categories page loads categories and displays them as cards. Some categories open normal icons. Special categories open specific features such as Emergency, Training, Drawing, Chat, or Daily Routine.\par
+\b Importance:\b0 Categories organize AAC content into easy sections. This helps users quickly find the communication topic they need.\par
+\par
+\b 10. Time Periods\b0\par
+\b What was used:\b0 TimePeriod table linked to MainCategory.\par
+\b How it is used:\b0 Real Life Activities first opens time periods. The app loads time periods from /maincategories/:id/timeperiods, then loads icons for a selected period from /timeperiods/:id/icons.\par
+\b Importance:\b0 Time periods make real-life communication more natural. A user can choose phrases depending on morning, afternoon, evening, or another daily context.\par
+\par
+\b 11. Icon, SubIcon, and SubSubIcon Hierarchy\b0\par
+\b What was used:\b0 Icon, SubIcon, and SubSubIcon tables.\par
+\b How it is used:\b0 Users select an Icon, then one or more SubIcons. If more detail is available, they open SubSubIcons. Each item contains title, expression, image, category, and optional audio.\par
+\b Importance:\b0 This hierarchy lets the app move from general to specific communication. It keeps screens less crowded while still supporting detailed sentences.\par
+\par
+\b 12. Multilingual Fields\b0\par
+\b What was used:\b0 title_en, title_ar, title_fr, title_es, expression_en, expression_ar, expression_fr, expression_es, and multilingual emergency labels.\par
+\b How it is used:\b0 These fields allow one record to store text in multiple languages. The frontend can later choose the displayed title and expression according to the selected language.\par
+\b Importance:\b0 AAC apps often need multiple languages for users, families, therapists, and schools. This avoids duplicating records for each language and makes localization easier.\par
+\par
+\b 13. Sentence Builder\b0\par
+\b What was used:\b0 Selected items, time options, connector options, and expressions.\par
+\b How it is used:\b0 When users select one or more SubIcons or SubSubIcons, the app builds a sentence from the selected time, parent expression, connector, and selected expressions.\par
+\b Importance:\b0 AAC communication should support phrases, not only single words. Sentence building gives users more natural communication.\par
+\par
+\b 14. Speech Output\b0\par
+\b What was used:\b0 Human recordings, browser speech synthesis, ElevenLabs, and Google TTS.\par
+\b How it is used:\b0 Human Records plays stored audio files. Male or Female voice uses browser speech synthesis. AI Male or AI Female uses ElevenLabs. Google TTS is used as fallback and for drawing/chat speech.\par
+\b Importance:\b0 Speech output is the core AAC function. Multiple speech methods make the system flexible and reliable when one provider fails.\par
+\par
+\b 15. Volume and Speed Controls\b0\par
+\b What was used:\b0 Audio element settings and speech options.\par
+\b How it is used:\b0 Users can adjust volume and speed on SubIcon, SubSubIcon, SubSubIcon detail, and Daily Routine pages. These values affect audio playback or generated speech.\par
+\b Importance:\b0 Some users need slower, clearer speech. Others need louder audio. These controls improve accessibility.\par
+\par
+\b 16. Add, Edit, and Delete AAC Content\b0\par
+\b What was used:\b0 Bootstrap modals, forms, FormData, Multer, and POST/PUT/DELETE endpoints.\par
+\b How it is used:\b0 Users can add, edit, or delete SubIcons and SubSubIcons. Forms include title, expression, category, image, and audio. The frontend sends FormData to the backend, and the backend updates the database.\par
+\b Importance:\b0 AAC content must be personal. A caregiver or therapist may need to add a specific person, medicine, place, object, or custom phrase.\par
+\par
+\b 17. Image and Audio Handling\b0\par
+\b What was used:\b0 File upload, camera capture, microphone capture, URL fields, previews, and default image fallback.\par
+\b How it is used:\b0 Images can be uploaded, captured by camera, or entered as URLs. Audio can be uploaded, recorded, or entered as a URL. The backend stores uploaded media in public uploads.\par
+\b Importance:\b0 Personal photos and personal recordings make communication more meaningful and recognizable for users.\par
+\par
+\b 18. Daily Routine\b0\par
+\b What was used:\b0 localStorage tracking and the daily routine utility.\par
+\b How it is used:\b0 Every time a SubIcon or SubSubIcon is spoken, the app saves or updates its usage count. When an item is spoken three times or more, it appears in Daily Routine.\par
+\b Importance:\b0 Frequently spoken items usually represent daily needs. The app automatically builds routine content from real use, saving time for caregivers.\par
+\par
+\b 19. User-to-User AAC Messages\b0\par
+\b What was used:\b0 User table, AacMessage table, receiver selection, quick phrases, message preview, and inbox polling.\par
+\b How it is used:\b0 User 1 opens the Message page, selects User 2, writes or chooses a message, and sends it. The backend stores senderId and receiverId. User 2 sees the message on the Emergency page.\par
+\b Importance:\b0 This allows communication between app users, not only speech from one device. It supports caregivers, patients, family members, and teachers.\par
+\par
+\b 20. Message Reply Support\b0\par
+\b What was used:\b0 replyToId in AacMessage.\par
+\b How it is used:\b0 replyToId can link a new message to a previous message. This allows a reply from User 2 to be connected to User 1's original message.\par
+\b Importance:\b0 It supports threaded conversations and makes message history easier to understand.\par
+\par
+\b 21. Emergency Feature\b0\par
+\b What was used:\b0 EmergencyNumber table, message inbox, Auto Speak, WhatsApp links, and alerts.\par
+\b How it is used:\b0 The Emergency page shows saved emergency numbers, lets users add numbers, displays incoming messages, speaks messages, and can auto-speak new messages.\par
+\b Importance:\b0 Emergency communication must be fast. Users can contact caregivers and receive spoken alerts when urgent messages arrive.\par
+\par
+\b 22. WhatsApp Integration\b0\par
+\b What was used:\b0 wa.me links, Meta Graph API endpoint, and WhatsApp webhook endpoints.\par
+\b How it is used:\b0 The frontend opens WhatsApp with a selected number and prefilled message. The backend can send WhatsApp messages if credentials are configured and can receive webhook replies.\par
+\b Importance:\b0 WhatsApp connects the app to a real communication platform that caregivers already use.\par
+\par
+\b 23. Speech Training\b0\par
+\b What was used:\b0 Web Speech API, MediaRecorder, Levenshtein scoring, localStorage, chart, and attempts table.\par
+\b How it is used:\b0 The user enters a target word, records speech, receives a recognized transcript, gets a similarity score, and sees progress across attempts.\par
+\b Importance:\b0 This supports pronunciation practice and helps track improvement over time.\par
+\par
+\b 24. Drawing Recognition\b0\par
+\b What was used:\b0 Canvas, PNG data URL, backend preprocessing, Tesseract.js OCR, editable text, and Google TTS.\par
+\b How it is used:\b0 The user draws on canvas, sends the image to the backend, receives recognized text, edits it if needed, and speaks it.\par
+\b Importance:\b0 Drawing gives users another way to express themselves when typing or selecting icons is difficult.\par
+\par
+\b 25. AAC Assistant\b0\par
+\b What was used:\b0 Chat UI, quick prompts, local AAC dataset, optional Groq provider, chat history, and Google TTS.\par
+\b How it is used:\b0 Users ask AAC-related questions. The backend returns a local or provider-generated answer. The user can speak the reply.\par
+\b Importance:\b0 It supports users and caregivers with guidance about AAC use, device refusal, core words, school, modeling, and daily communication.\par
+\par
+\b 26. Offline Mode\b0\par
+\b What was used:\b0 Service Worker, Cache Storage, offline manifest, cachedFetch, and localStorage preference.\par
+\b How it is used:\b0 The app caches important API responses and media files. When offline mode is active or internet is unavailable, the frontend reads cached data.\par
+\b Importance:\b0 Communication should not stop because of weak internet. Offline mode keeps important AAC content available.\par
+\par
+\b 27. Database Relationships\b0\par
+The database design is relational. User can create MainCategories, send and receive AacMessages, save EmergencyNumbers, and have SpeechAttempts. MainCategory has TimePeriods and Icons. TimePeriod can group Icons. Icon has SubIcons. SubIcon has SubSubIcons. AacMessage can reply to another AacMessage through replyToId.\par
+\par
+\b 28. Deployment\b0\par
+\b What was used:\b0 Vercel for the frontend configuration, Railway for the public backend URL, Node/Express for the backend server, and PostgreSQL through DATABASE_URL.\par
+\b How it is used:\b0 The frontend has a Vercel configuration that rewrites /backend/(*) requests to https://tts-production-6e70.up.railway.app/*. The frontend API helper also chooses the Railway backend URL in production and localhost:5551 in local development. The backend starts with npm start, runs node index.js, listens on process.env.PORT or 5551, and connects to PostgreSQL using DATABASE_URL. The backend also contains CORS settings for the deployed frontend domains, Railway domains, and local development origins.\par
+\b Importance:\b0 Deployment separates the user interface from backend services. Vercel is suitable for the React static build, while Railway is suitable for the Node backend and environment variables. This makes the app available online and easier to update.\par
+\par
+\b 29. Dataset and Asset Size\b0\par
+\b What was measured:\b0 The local project contains structured seed data and media assets.\par
+\b Structured seed data:\b0 backend/prisma/data.js is about 74.59 KB and includes 41 exported arrays with 486 total array items. It includes 5 main categories, 4 time periods, 47 icons, 2 emergency numbers, and many subicon groups. backend/prisma/subSubIconData.js is about 72.38 KB and contains 378 SubSubIcon items across 117 groups. backend/prisma/seed.js is about 12.56 KB and is used to insert the seed data into the database.\par
+\b Media dataset:\b0 backend/public contains 1364 files with a total size of about 352.49 MB. The largest media type is MP3 audio: 36 files, about 290.18 MB. There are also 739 PNG images, about 16.65 MB; 240 M4A audio files, about 17.10 MB; and 39 JPG files, about 18.53 MB. frontend/public contains 16 files, about 2.21 MB.\par
+\b Importance:\b0 The dataset is important because AAC depends on visual and audio content. Images help users recognize choices, and audio files provide human recordings. Knowing the dataset size is also important for deployment, offline caching, storage, and performance planning.\par
+\par
+\b 30. Git and GitHub\b0\par
+\b What was used:\b0 Git for local version control and GitHub for remote repository hosting.\par
+\b How it is used:\b0 The current repository remote is https://github.com/MayarAyman222/tts.git. The active branch is main. Git is used to track changes in frontend, backend, database schema, documentation, and reports. GitHub stores the project online, allows code backup, history tracking, collaboration, and can connect with deployment platforms.\par
+\b Importance:\b0 Git and GitHub are important because the project contains many features and files. Version control makes it possible to track changes, return to older versions, collaborate safely, and document progress. It also supports deployment workflows because platforms like Vercel and Railway can deploy from GitHub repositories.\par
+\par
+\b 31. API Endpoints Used in the App\b0\par
+\b Health and frontend fallback:\b0 GET /health checks backend status. GET /* serves the frontend build for browser page requests when available.\par
+\b Authentication and users:\b0 POST /api/auth/signup, POST /api/signup, POST /signup create a user. POST /api/auth/login, POST /api/login, POST /login log in a user. GET /api/users and GET /users load users, with optional excludeUserId.\par
+\b TTS and speech output:\b0 POST /api/tts/speak generates ElevenLabs speech with fallback behavior. POST /api/tts/gtts generates Google TTS audio.\par
+\b Chat and drawing:\b0 POST /api/chat and POST /chat send a message to the AAC assistant. POST /api/drawing/recognize sends canvas PNG data for OCR recognition.\par
+\b Offline:\b0 GET /offline-manifest and GET /api/offline-manifest return cached API responses and media URLs for offline mode.\par
+\b Main AAC content:\b0 GET /maincategories loads main categories. GET /maincategories/:id/timeperiods loads time periods. GET /maincategories/:id/icons loads icons by category. GET /timeperiods/:id/icons loads icons by time period. GET /icons loads all icons or filters by category query. POST /icons creates an icon. GET /icons/:id loads one icon with subicons. GET /subicons loads all subicons. GET /icons/:iconId/subicons loads subicons for an icon.\par
+\b SubIcon management:\b0 POST /icons/:iconId/subicons creates a subicon. GET /icons/:iconId/subicons/:subIconId loads one subicon with subsubicons. PUT /icons/:iconId/subicons/:subIconId updates a subicon. DELETE /icons/:iconId/subicons/:subIconId deletes a subicon.\par
+\b SubSubIcon management:\b0 POST /subicons/:subIconId/subsubicons creates a subsubicon. GET /subicons/:subIconId/subsubicons loads subsubicons for a subicon. GET /icons/:iconId/subicons/:subIconId/subsubicons/:subSubIconId loads one subsubicon. PUT /icons/:iconId/subicons/:subIconId/subsubicons/:subSubIconId updates a subsubicon. DELETE /icons/:iconId/subicons/:subIconId/subsubicons/:subSubIconId deletes a subsubicon.\par
+\b Emergency and messages:\b0 GET /emergency-numbers loads emergency numbers. POST /emergency-numbers creates or updates an emergency number. GET /aac-messages and GET /api/aac-messages load AAC messages, with optional receiverId or senderId. POST /aac-messages and POST /api/aac-messages create an AAC message.\par
+\b WhatsApp:\b0 POST /whatsapp/send and POST /api/whatsapp/send send a WhatsApp text message through Meta Graph API when configured. GET /webhooks/whatsapp, GET /whatsapp/webhook, and GET /api/whatsapp/webhook verify webhook setup. POST /webhooks/whatsapp, POST /whatsapp/webhook, and POST /api/whatsapp/webhook receive incoming WhatsApp messages.\par
+\b Speech attempts:\b0 GET /speech/attempts loads speech practice attempts, optionally filtered by word. POST /speech/attempts saves a speech attempt.\par
+\par
+\b 32. Mobile App Architecture: Expo and React Native\b0\par
+\b What was used:\b0 Expo SDK 54, React Native 0.81, React 19, Expo Dev Client, Expo Constants, Expo Splash Screen, and app.json.\par
+\b How it is used:\b0 The current app is implemented as a native mobile application, not only as a browser web app. Expo manages Android, iOS, splash screen, app icon, permissions, runtime extra values, and EAS project metadata. React Native builds the screens and native UI components.\par
+\b Importance:\b0 This makes Voxi usable as an installable mobile AAC app. Mobile access is important because AAC communication usually needs to be available quickly in daily life, school, transport, therapy sessions, and emergency situations.\par
+\par
+\b 33. React Navigation Native Stack\b0\par
+\b What was used:\b0 @react-navigation/native and @react-navigation/native-stack.\par
+\b How it is used:\b0 The app uses a stack navigator with screens for Login, Signup, Landing, Setting, Category, Dashboard, SubIconDashboard, SubIconDetail, SubSubIcon, SubSubIconDetail, IconDetail, Home, Profile, Favourites, TimePeriod, Emergency, TryToSpeak, Chat, and ExpressByDrawing. Headers are hidden to keep the AAC interface focused.\par
+\b Importance:\b0 Native stack navigation gives the mobile app a clear flow while keeping transitions fast and familiar for Android and iOS users.\par
+\par
+\b 34. Persistent Mobile Settings and Session Storage\b0\par
+\b What was used:\b0 AppContext, LanguageContext, and @react-native-async-storage/async-storage.\par
+\b How it is used:\b0 AsyncStorage saves theme, language, loggedInUser, favourite items, and speech-training attempts. AppContext exposes theme, language, current user, and saveUser across screens. LanguageContext also stores appLanguage for language persistence.\par
+\b Importance:\b0 Users do not need to reset language, theme, login state, favourites, or training progress every time the app opens. This is especially useful for children, elderly users, and caregivers who need predictable setup.\par
+\par
+\b 35. Theme and Accessibility Modes\b0\par
+\b What was used:\b0 A shared theme object and the Settings screen.\par
+\b How it is used:\b0 The app supports Light, Dark, and High Contrast modes. Settings lets users switch themes, and screens read colors from the current theme.\par
+\b Importance:\b0 AAC users may have different visual needs. Dark mode can reduce eye strain, while high contrast can help users with low vision or difficulty distinguishing colors.\par
+\par
+\b 36. Mobile Multilingual Interface\b0\par
+\b What was used:\b0 English, Arabic, French, and Spanish UI text plus multilingual database fields.\par
+\b How it is used:\b0 Settings changes the active app language. Category, Landing, Profile, TimePeriod, Chat, and other screens display labels according to the selected language. Database records also store title and expression fields for en, ar, fr, and es.\par
+\b Importance:\b0 The same app can support users, families, therapists, teachers, and visitors who use different languages without duplicating the whole content structure.\par
+\par
+\b 37. Favourites System\b0\par
+\b What was used:\b0 AsyncStorage, favouritesStorage service, and a dedicated Favourites screen.\par
+\b How it is used:\b0 Selected SubIcons and SubSubIcons are normalized and saved per user using a user-specific favourites key. The Favourites screen loads saved items, allows deletion, supports search, opens the correct detail page, and can speak a sentence built from selected favourite expressions.\par
+\b Importance:\b0 Favourites give users faster access to the phrases and items they use most, reducing the number of taps needed for daily communication.\par
+\par
+\b 38. Mobile Speech Training with Native Speech Recognition\b0\par
+\b What was used:\b0 expo-speech-recognition, RECORD_AUDIO permission, AsyncStorage, Levenshtein scoring, language picker, and a mini progress chart.\par
+\b How it is used:\b0 The TryToSpeak screen asks the user for a target word or sentence, requests microphone and speech-recognition permission, listens in the selected language, compares the recognized transcript to the target, calculates a percentage score, saves attempts locally, and shows progress. It handles no-speech, timeout, busy service, unsupported language, and missing native module cases.\par
+\b Importance:\b0 This turns the app into a speech-practice tool, not only a speech-output tool. It also documents progress locally so the user or caregiver can see improvement over repeated attempts.\par
+\par
+\b 39. Custom Dev Build Requirement for Speech Recognition\b0\par
+\b What was used:\b0 Expo Dev Client and the expo-speech-recognition native module.\par
+\b How it is used:\b0 Speech recognition is guarded with a safe import because it does not work in Expo Go. The app shows guidance to install expo-speech-recognition and rebuild with expo run:android or expo run:ios when the native layer is missing.\par
+\b Importance:\b0 This prevents the screen from crashing and documents the correct mobile build requirement for a native speech feature.\par
+\par
+\b 40. Mobile Media Capture, Upload, and Playback\b0\par
+\b What was used:\b0 expo-av, expo-image-picker, expo-document-picker, @react-native-community/slider, FormData, Multer, and public uploads.\par
+\b How it is used:\b0 The app can play generated TTS audio with expo-av, control volume and speed with sliders, choose images from the gallery, capture images with the camera, choose audio files, use audio URLs, and upload media to the backend. The backend stores uploaded images and audio under public uploads.\par
+\b Importance:\b0 Personal images and audio are central for AAC. A user may recognize a real family member, room, food, medicine, or object more easily than a generic icon.\par
+\par
+\b 41. Mobile Permissions\b0\par
+\b What was used:\b0 app.json iOS and Android permission configuration.\par
+\b How it is used:\b0 iOS includes microphone, speech recognition, camera, photo library, and audio selection descriptions. Android requests RECORD_AUDIO, allows cleartext traffic for the configured backend server, enables edge-to-edge display, and uses a package id of com.beckymee.mobile.\par
+\b Importance:\b0 Correct permissions are required before speech training, camera capture, image selection, audio selection, and server communication can work on real devices.\par
+\par
+\b 42. Drawing Recognition Mobile Flow\b0\par
+\b What was used:\b0 A React Native drawing screen, stroke data, backend OCR preprocessing, Tesseract.js, and Google TTS playback.\par
+\b How it is used:\b0 The mobile screen sends drawing strokes and language to /api/drawing/ocr. The backend normalizes the strokes into a temporary PGM image, runs Tesseract with language mapping such as ara+eng or eng, returns recognized text and confidence, and the mobile app can speak the result.\par
+\b Importance:\b0 This gives users another input method when selecting icons or typing is difficult. The stroke-based flow is well suited to mobile touch screens.\par
+\par
+\b 43. Chatbot Provider Configuration\b0\par
+\b What was used:\b0 Local AAC knowledge files, Groq-compatible chat API support, optional OpenRouter support, node-fetch, and environment variables.\par
+\b How it is used:\b0 The chatbot can answer from local AAC expert knowledge. If configured, it can call Groq or another OpenAI-compatible provider. The backend chooses the provider from CHATBOT_PROVIDER, GROQ_API_KEY, OPENROUTER_API_KEY, CHATBOT_API_URL, CHATBOT_API_KEY, and model environment variables.\par
+\b Importance:\b0 The assistant can work locally for common AAC guidance and can also be upgraded with an external AI provider when API credentials are available.\par
+\par
+\b 44. Backend Speech Transcription Capability\b0\par
+\b What was used:\b0 Groq audio transcription API, Whisper model configuration, multer memory storage, and /api/speech/transcribe.\par
+\b How it is used:\b0 The backend can accept an uploaded audio file, map the selected language to ISO codes, send the file to the configured Groq transcription endpoint, and return the transcribed text.\par
+\b Importance:\b0 This gives the backend a server-side speech-to-text path that can support future training or accessibility features beyond device-native recognition.\par
+\par
+\b 45. Mobile API Configuration\b0\par
+\b What was used:\b0 mobile/src/config/appConfig.js, Expo Constants, EXPO_PUBLIC_APP_ENV, EXPO_PUBLIC_DEV_API_BASE_URL, EXPO_PUBLIC_PROD_API_BASE_URL, Axios, and fetch.\par
+\b How it is used:\b0 The mobile app points to the public backend base URL http://168.231.101.20:5550 and builds API URLs under /api. It normalizes media URLs so localhost, 127.0.0.1, emulator, and local network URLs can be converted to the configured public backend origin.\par
+\b Importance:\b0 Mobile devices cannot always use localhost from the developer machine. A stable API configuration keeps media, TTS, OCR, categories, and authentication working on real phones.\par
+\par
+\b 46. Current Mobile Build and Deployment Steps\b0\par
+\b Backend setup:\b0 In backend, install dependencies with npm install. Configure .env with PORT=5550, CORS_ORIGIN, DATABASE_URL, optional PUBLIC_BASE_URL, optional GROQ_API_KEY, optional OPENROUTER_API_KEY, and chatbot model settings. Run Prisma generation and database migration or seeding as needed, then start the API with npm start or npm run start:prod.\par
+\b Mobile development:\b0 In mobile, install dependencies with npm install. Start Expo with npm run start:dev or npm start. For native speech recognition testing, use a custom dev build with expo run:android or expo run:ios because Expo Go does not include the required native module.\par
+\b Android builds:\b0 npm run build:apk creates an internal Android APK through EAS profile production-apk. npm run build:apk:preview creates a preview APK. npm run build:aab creates an Android App Bundle for production store deployment.\par
+\b iOS builds:\b0 npm run build:ipa builds iOS with the preview profile. npm run build:ios:prod builds the production iOS profile. npm run build:ios:sim builds an iOS simulator build.\par
+\b EAS configuration:\b0 eas.json defines development, preview, production-apk, production, and ios-simulator profiles. The profiles set production API environment values and use internal distribution for APK and simulator testing where appropriate.\par
+\b Importance:\b0 These steps document how the current mobile app is run locally, tested with native modules, and packaged for Android or iOS distribution.\par
+\par
+\b 47. Additional Tools and Libraries in the Current App\b0\par
+\b Mobile tools:\b0 Expo, React Native, React Navigation, AsyncStorage, Axios, Expo AV, Expo Image Picker, Expo Document Picker, Expo Speech Recognition, Expo Dev Client, Expo Splash Screen, Expo Build Properties, React Native Picker, React Native Slider, React Native Vector Icons, and EAS CLI.\par
+\b Backend tools:\b0 Node.js, Express 5, Prisma Client, PostgreSQL, bcryptjs, jsonwebtoken, cors, dotenv, multer, node-fetch, google-tts-api, @iamtraction/google-translate, Tesseract.js, uuid, Groq-compatible chat/transcription APIs, and OpenRouter-compatible provider configuration.\par
+\b Importance:\b0 Listing these tools helps explain the real implementation stack used by the current project and separates mobile build tools from backend API tools.\par
+\par
+\b 48. Updated Conclusion\b0\par
+Voxi combines mobile AAC communication, speech output, emergency tools, favourites, multilingual content, speech training, drawing recognition, assistant support, custom media handling, backend APIs, PostgreSQL data, and mobile deployment readiness. The current implementation uses Expo and React Native for the installable mobile app, React Navigation for screen flow, AsyncStorage for local persistence, Express and Prisma for backend logic and data, Tesseract for drawing OCR, Google TTS for generated speech, Groq or local knowledge for assistant responses, and EAS for Android and iOS builds.\par
+}
